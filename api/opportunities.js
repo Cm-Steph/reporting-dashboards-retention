@@ -73,7 +73,7 @@ module.exports = async function handler(req, res) {
         primary_exit_reason:   field(o, 'primary_exit_reason') || null,
         exit_date:             field(o, 'exit_date') || null,
         date_confirm_retained: field(o, 'date_confirm_retained') || null,
-        consultant:            o.assignedTo?.name || field(o, 'consultant') || 'Unassigned',
+        consultant:            field(o, 'consultantcoach') || fieldContact(o, 'consultantcoach') || o.assignedTo?.name || field(o, 'consultant') || 'Unassigned',
         createdAt:             o.createdAt || ''
       };
     });
@@ -102,4 +102,13 @@ module.exports = async function handler(req, res) {
 function field(opp, key) {
   const f = (opp.customFields || []).find(f => f.key === key || f.fieldKey === key);
   return f ? (f.fieldValue || f.value || null) : null;
+}
+
+function fieldContact(opp, key) {
+  const contact = opp.contact || {};
+  // Check contact customFields
+  const f = (contact.customFields || contact.customField || []).find(f => f.key === key || f.fieldKey === key || f.id === key);
+  if (f) return f.fieldValue || f.value || null;
+  // Check direct contact properties
+  return contact[key] || null;
 }
