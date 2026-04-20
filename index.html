@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clinic Mastery — Retention Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --yellow:       #f0d140;
+    --yellow-light: #fdf5b8;
+    --yellow-dim:   rgba(240,209,64,0.18);
+    --orange:       #ff8e21;
+    --orange-dim:   rgba(255,142,33,0.15);
+    --violet:       #a1129e;
+    --violet-dim:   rgba(161,18,158,0.12);
+    --eggplant:     #2e0a78;
+    --eggplant-dim: rgba(46,10,120,0.1);
+    --blue:         #24a3ff;
+    --blue-dim:     rgba(36,163,255,0.12);
+    --salmon:       #ff707d;
+    --salmon-dim:   rgba(255,112,125,0.12);
+    --bg:       #f7f7f9;
+    --surface:  #ffffff;
+    --surface2: #f1f1f5;
+    --border:   #e4e4ec;
+    --border2:  #d0d0de;
+    --text:     #1a1a2e;
+    --muted:    #6e6e8a;
+    --muted2:   #a0a0bc;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Work Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
+  .app { max-width: 1320px; margin: 0 auto; padding: 32px 48px; }
+  body { background: var(--bg); color: var(--text); font-family: 'Work Sans', sans-serif; min-height: 100vh; overflow-x: hidden; padding: 0 16px; }
+
+  /* Header */
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; padding-bottom: 24px; border-bottom: 3px solid var(--yellow); }
+  .header-left .brand { font-family: 'Lexend', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.2em; color: var(--violet); text-transform: uppercase; margin-bottom: 4px; }
+  .header-left h1 { font-family: 'Lexend', sans-serif; font-size: 32px; font-weight: 800; color: var(--eggplant); letter-spacing: -0.02em; line-height: 1.1; }
+  .sync-info { font-size: 11px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--violet); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .header-right { display: flex; gap: 10px; align-items: center; }
+
+  /* Buttons */
+  .btn { display: flex; align-items: center; gap: 7px; padding: 10px 18px; border-radius: 8px; font-family: 'Work Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: none; }
+  .btn-ghost { background: var(--surface); color: var(--muted); border: 1.5px solid var(--border2); }
+  .btn-ghost:hover { color: var(--eggplant); border-color: var(--eggplant); }
+  .btn-primary { background: var(--yellow); color: var(--eggplant); font-weight: 700; border: 1.5px solid var(--yellow); }
+  .btn-primary:hover { background: #e8c820; }
+  .btn-primary.loading { opacity: 0.6; pointer-events: none; }
+
+  /* Banners */
+  .banner { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 20px; display: none; align-items: center; gap: 10px; }
+  .banner.error { background: var(--salmon-dim); border: 1px solid rgba(255,112,125,0.35); color: #c0392b; display: flex; }
+  .banner.info  { background: var(--eggplant-dim); border: 1px solid rgba(46,10,120,0.2); color: var(--eggplant); display: flex; }
+
+  /* Settings */
+  .api-config { background: var(--surface); border: 1.5px solid var(--yellow); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+  .api-config h3 { font-family: 'Lexend', sans-serif; font-size: 12px; font-weight: 700; color: var(--eggplant); margin-bottom: 14px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .config-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .config-field { flex: 1; min-width: 200px; }
+  .config-field label { display: block; font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; margin-bottom: 6px; }
+  .config-field input { width: 100%; background: var(--bg); border: 1.5px solid var(--border2); border-radius: 7px; padding: 9px 12px; color: var(--text); font-family: 'Work Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.15s; }
+  .config-field input:focus { border-color: var(--violet); }
+  .config-field input::placeholder { color: var(--muted2); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 28px; background: var(--surface); padding: 4px; border-radius: 10px; width: fit-content; border: 1.5px solid var(--border); }
+  .tab { padding: 9px 22px; border-radius: 7px; font-family: 'Work Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--muted); background: none; border: none; transition: all 0.15s; }
+  .tab:hover { color: var(--eggplant); }
+  .tab.active { background: var(--eggplant); color: #fff; font-weight: 700; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Section label */
+  .section-label { font-family: 'Lexend', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--violet); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* KPI Grid */
+  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+  .kpi-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 22px 20px 18px; position: relative; overflow: hidden; transition: box-shadow 0.2s, border-color 0.2s; }
+  .kpi-card:hover { box-shadow: 0 4px 20px rgba(46,10,120,0.08); border-color: var(--border2); }
+  .kpi-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; border-radius: 0 0 14px 14px; }
+  .kpi-card.yellow::after  { background: var(--yellow); }
+  .kpi-card.violet::after  { background: var(--violet); }
+  .kpi-card.orange::after  { background: var(--orange); }
+  .kpi-card.blue::after    { background: var(--blue); }
+  .kpi-card.salmon::after  { background: var(--salmon); }
+  .kpi-card.eggplant::after{ background: var(--eggplant); }
+  .kpi-label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .kpi-value { font-family: 'Lexend', sans-serif; font-size: 36px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .kpi-card.yellow .kpi-value  { color: #8a6e00; }
+  .kpi-card.violet .kpi-value  { color: var(--violet); }
+  .kpi-card.orange .kpi-value  { color: var(--orange); }
+  .kpi-card.blue .kpi-value    { color: var(--blue); }
+  .kpi-card.salmon .kpi-value  { color: #c0392b; }
+  .kpi-card.eggplant .kpi-value{ color: var(--eggplant); }
+  .kpi-sub { font-size: 12px; color: var(--muted); }
+
+  /* Charts */
+  .charts-row { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; margin-bottom: 20px; }
+  .chart-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 22px; }
+  .chart-title { font-family: 'Lexend', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--eggplant); margin-bottom: 18px; }
+
+  /* Donut */
+  .donut-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .donut-svg { transform: rotate(-90deg); }
+  .donut-center { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .donut-container { position: relative; display: flex; align-items: center; justify-content: center; width: 160px; height: 160px; }
+  .donut-pct { font-family: 'Lexend', sans-serif; font-size: 30px; font-weight: 800; color: var(--eggplant); line-height: 1; }
+  .donut-lbl { font-size: 9px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 2px; font-weight: 600; }
+  .donut-legend { display: flex; gap: 16px; font-size: 12px; flex-wrap: wrap; justify-content: center; }
+  .legend-item { display: flex; align-items: center; gap: 6px; color: var(--muted); font-weight: 500; }
+  .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Bar chart */
+  .bar-chart { height: 140px; display: flex; flex-direction: column; justify-content: flex-end; }
+  .bars-area { display: flex; align-items: flex-end; gap: 8px; height: 110px; padding-bottom: 4px; border-bottom: 1.5px solid var(--border); }
+  .bar-group { flex: 1; display: flex; align-items: flex-end; gap: 2px; }
+  .bar { flex: 1; border-radius: 4px 4px 0 0; min-height: 2px; transition: opacity 0.2s; }
+  .bar:hover { opacity: 0.75; }
+  .bar-retained { background: var(--eggplant); }
+  .bar-exited   { background: var(--salmon); opacity: 0.8; }
+  .bar-labels { display: flex; gap: 8px; margin-top: 6px; }
+  .bar-label { flex: 1; text-align: center; font-size: 10px; color: var(--muted); font-weight: 500; }
+
+  /* Tables */
+  .table-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 20px; }
+  .table-header { padding: 16px 20px; border-bottom: 1.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface2); }
+  .table-title { font-family: 'Lexend', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--eggplant); }
+  .search-input { background: var(--surface); border: 1.5px solid var(--border2); border-radius: 7px; padding: 7px 13px; color: var(--text); font-family: 'Work Sans', sans-serif; font-size: 12px; outline: none; width: 220px; transition: border-color 0.15s; }
+  .search-input:focus { border-color: var(--violet); }
+  .search-input::placeholder { color: var(--muted2); }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); background: var(--surface2); border-bottom: 1.5px solid var(--border); }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: var(--yellow-light); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 12px 16px; font-size: 13px; color: var(--text); }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+  .badge-retained { background: var(--eggplant-dim); color: var(--eggplant); border: 1px solid rgba(46,10,120,0.2); }
+  .badge-exited   { background: var(--salmon-dim); color: #c0392b; border: 1px solid rgba(255,112,125,0.25); }
+  .badge-review   { background: var(--orange-dim); color: #a05000; border: 1px solid rgba(255,142,33,0.25); }
+  .badge-active   { background: var(--yellow-dim); color: #7a6200; border: 1px solid rgba(240,209,64,0.4); }
+  .badge-yes      { background: var(--violet-dim); color: var(--violet); border: 1px solid rgba(161,18,158,0.2); }
+  .badge-no       { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); }
+
+  /* Pagination */
+  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-top: 1.5px solid var(--border); font-size: 12px; color: var(--muted); background: var(--surface2); }
+  .page-btns { display: flex; gap: 5px; }
+  .page-btn { padding: 5px 11px; border-radius: 6px; background: var(--surface); border: 1.5px solid var(--border2); color: var(--muted); font-family: 'Work Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .page-btn:hover, .page-btn.active { background: var(--eggplant); color: #fff; border-color: var(--eggplant); }
+  .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* Programs */
+  .programs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .program-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 20px; transition: box-shadow 0.2s; }
+  .program-card:hover { box-shadow: 0 4px 18px rgba(46,10,120,0.08); }
+  .program-name { font-family: 'Lexend', sans-serif; font-size: 14px; font-weight: 800; margin-bottom: 14px; color: var(--eggplant); }
+  .program-stat { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .program-stat-label { font-size: 12px; color: var(--muted); }
+  .program-stat-value { font-size: 12px; color: var(--text); font-weight: 600; }
+  .program-bar-bg { height: 5px; background: var(--border2); border-radius: 3px; margin-top: 14px; overflow: hidden; }
+  .program-bar-fill { height: 100%; background: var(--yellow); border-radius: 3px; transition: width 0.6s ease; }
+
+  /* Exit reasons */
+  .reasons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .reason-item { display: flex; justify-content: space-between; align-items: center; padding: 11px 14px; background: var(--surface2); border-radius: 8px; font-size: 13px; border: 1px solid var(--border); }
+  .reason-label { color: var(--muted); font-weight: 500; }
+  .reason-count { color: var(--salmon); font-weight: 700; font-family: 'Lexend', sans-serif; }
+
+  /* Empty state */
+  .empty-state { padding: 60px 20px; text-align: center; color: var(--muted2); }
+  .empty-state h3 { font-family: 'Lexend', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--muted); }
+  .empty-state p { font-size: 13px; }
+
+  /* Date range */
+  .date-range-wrap { display: flex; align-items: center; gap: 8px; }
+  .date-range-select { background: var(--surface); border: 1.5px solid var(--border2); border-radius: 8px; padding: 9px 14px 9px 12px; color: var(--eggplant); font-family: 'Work Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.15s; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236e6e8a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; }
+  .date-range-select:focus, .date-range-select:hover { border-color: var(--violet); }
+  .custom-date-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .custom-date-row label { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+  .custom-date-row input[type="date"] { background: var(--bg); border: 1.5px solid var(--border2); border-radius: 7px; padding: 7px 10px; color: var(--text); font-family: 'Work Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.15s; }
+  .custom-date-row input[type="date"]:focus { border-color: var(--violet); }
+  .date-range-label { font-size: 11px; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px; font-weight: 600; }
+
+  @media (max-width: 900px) { .kpi-grid { grid-template-columns: 1fr 1fr; } .charts-row { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) { .app { padding: 24px 20px; } }
+  @media (max-width: 600px) { .kpi-grid { grid-template-columns: 1fr; } .config-row { flex-direction: column; } .header { flex-direction: column; gap: 14px; } }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-left">
+      <div class="brand">Clinic Mastery</div>
+      <h1>Retention Dashboard</h1>
+      <div class="sync-info">
+        <div class="sync-dot" id="syncDot"></div>
+        <span id="syncLabel">Configure API to connect</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="date-range-wrap">
+        <select class="date-range-select" id="dateRangeSelect" onchange="onDateRangeChange()">
+          <option value="all">All Time</option>
+          <option value="this_month">This Month</option>
+          <option value="last_month">Last Month</option>
+          <option value="last_3">Last 3 Months</option>
+          <option value="last_6" selected>Last 6 Months</option>
+          <option value="this_year">This Year</option>
+          <option value="last_year">Last Year</option>
+          <option value="custom">Custom Range</option>
+        </select>
+      </div>
+      
+      <button class="btn btn-primary" id="refreshBtn" onclick="loadData()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Custom date row (shown only when Custom Range selected) -->
+  <div class="custom-date-row" id="customDateRow" style="display:none; margin-bottom:16px;">
+    <label>From</label>
+    <input type="date" id="customDateFrom" onchange="applyDateFilter()">
+    <label>To</label>
+    <input type="date" id="customDateTo" onchange="applyDateFilter()">
+  </div>
+
+  <div class="banner" id="errorBanner"><span>⚠</span><span id="errorText"></span></div>
+  <div class="banner info" id="demoBanner">
+    <span>ℹ</span>
+    <span>Showing demo data — add your GHL_API_KEY, GHL_LOCATION_ID and GHL_PIPELINE_ID in Vercel Environment Variables to load live data.</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;" id="activeDateBadge">
+    <span style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">Showing:</span>
+    <span class="date-range-label" id="dateRangeActiveLabel" style="font-size:12px;">Last 6 Months</span>
+  </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview')">Overview</button>
+    <button class="tab" onclick="switchTab('clients')">Clients</button>
+    <button class="tab" onclick="switchTab('consultants')">Consultants</button>
+    <button class="tab" onclick="switchTab('programs')">Programs</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="tab-panel active" id="tab-overview">
+    <div class="section-label">Key Metrics</div>
+    <div class="kpi-grid">
+      <div class="kpi-card yellow">
+        <div class="kpi-label">Retention Rate</div>
+        <div class="kpi-value" id="kpi-rate">—</div>
+        <div class="kpi-sub" id="kpi-rate-sub">Loading...</div>
+      </div>
+      <div class="kpi-card eggplant">
+        <div class="kpi-label">Active MRR</div>
+        <div class="kpi-value" id="kpi-mrr">—</div>
+        <div class="kpi-sub">From retained clients</div>
+      </div>
+      <div class="kpi-card violet">
+        <div class="kpi-label">Fee Support Total</div>
+        <div class="kpi-value" id="kpi-saved">—</div>
+        <div class="kpi-sub">Total discounts applied</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Fee Support Clients</div>
+        <div class="kpi-value" id="kpi-feesupport">—</div>
+        <div class="kpi-sub" id="kpi-feesupport-sub">Clients on support</div>
+      </div>
+      <div class="kpi-card salmon">
+        <div class="kpi-label">At Risk / Review</div>
+        <div class="kpi-value" id="kpi-review">—</div>
+        <div class="kpi-sub">In review stage</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Total Active</div>
+        <div class="kpi-value" id="kpi-total">—</div>
+        <div class="kpi-sub">In pipeline</div>
+      </div>
+    </div>
+
+    <div class="section-label">Retention Overview</div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">Overall Retention</div>
+        <div class="donut-wrap">
+          <div class="donut-container">
+            <svg class="donut-svg" width="160" height="160" viewBox="0 0 160 160">
+              <circle cx="80" cy="80" r="62" fill="none" stroke="#e4e4ec" stroke-width="16"/>
+              <circle cx="80" cy="80" r="62" fill="none" stroke="#ff707d" stroke-width="16"
+                stroke-dasharray="389.6" stroke-dashoffset="0" id="donut-exited"/>
+              <circle cx="80" cy="80" r="62" fill="none" stroke="#2e0a78" stroke-width="16"
+                stroke-dasharray="389.6" stroke-dashoffset="0" id="donut-retained" stroke-linecap="round"/>
+            </svg>
+            <div class="donut-center">
+              <div class="donut-pct" id="donut-pct">—</div>
+              <div class="donut-lbl">Retained</div>
+            </div>
+          </div>
+          <div class="donut-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--eggplant)"></div><span id="leg-retained">Retained</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--salmon)"></div><span id="leg-exited">Exited</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div><span id="leg-review">Review</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Monthly Trend — Retained vs Exited</div>
+        <div class="bar-chart">
+          <div class="bars-area" id="barsArea">
+            <div style="color:var(--muted2);font-size:12px;margin:auto">Load data to see trends</div>
+          </div>
+          <div class="bar-labels" id="barLabels"></div>
+        </div>
+        <div class="donut-legend" style="margin-top:12px">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--eggplant)"></div><span>Retained</span></div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--salmon)"></div><span>Exited</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Exit Analysis</div>
+    <div class="chart-card" style="margin-bottom:20px">
+      <div class="chart-title">Primary Exit Reasons</div>
+      <div class="reasons-grid" id="exitReasons">
+        <div style="color:var(--muted2);font-size:13px;grid-column:1/-1">No data loaded</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLIENTS -->
+  <div class="tab-panel" id="tab-clients">
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">All Clients</div>
+        <input class="search-input" type="text" placeholder="Search name or program..." id="clientSearch" oninput="filterClients()">
+      </div>
+      <table>
+        <thead><tr><th>Client</th><th>Program</th><th>Status</th><th>Retention Stage</th><th>Member Value</th><th>Fee Support</th><th>Outcome</th><th>Exit Date</th></tr></thead>
+        <tbody id="clientsBody">
+          <tr><td colspan="8"><div class="empty-state"><h3>No data</h3><p>Configure your API key to load clients</p></div></td></tr>
+        </tbody>
+      </table>
+      <div class="pagination">
+        <span id="paginationInfo">—</span>
+        <div class="page-btns" id="pageButtons"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONSULTANTS -->
+  <div class="tab-panel" id="tab-consultants">
+    <div class="table-card">
+      <div class="table-header"><div class="table-title">Consultant Performance</div></div>
+      <table>
+        <thead><tr><th>Consultant</th><th>Total Handled</th><th>Retained</th><th>Exited</th><th>In Review</th><th>Retention Rate</th><th>Total MRR</th></tr></thead>
+        <tbody id="consultantsBody">
+          <tr><td colspan="7"><div class="empty-state"><h3>No data</h3><p>Configure your API key to load consultant data</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PROGRAMS -->
+  <div class="tab-panel" id="tab-programs">
+    <div class="programs-grid" id="programsGrid">
+      <div class="program-card"><div class="empty-state" style="padding:20px 0"><h3>No data</h3><p>Configure API to load</p></div></div>
+    </div>
+  </div>
+
+</div>
+<script>
+let allOpportunities = [], filteredClients = [], currentPage = 1;
+const PAGE_SIZE = 20;
+let usingDemo = true;
+let activeDateRange = 'last_6';
+let customDateFrom = null, customDateTo = null;
+
+const DEMO = [
+  { name:"Sarah Mitchell", program:"12-Month Mastery", status:"Active", retention_stage:"Retained", member_value:450, fee_support_applied:"No", fee_support_amount:0, primary_exit_reason:null, exit_date:null, date_confirm_retained:"2025-12-01", consultant:"Jamie Lee", customer_status:"Retained", createdAt:"2025-08-01" },
+  { name:"Tom Nguyen", program:"6-Month Program", status:"Active", retention_stage:"Review", member_value:280, fee_support_applied:"Yes", fee_support_amount:80, primary_exit_reason:null, exit_date:null, date_confirm_retained:null, consultant:"Jamie Lee", customer_status:"Review", createdAt:"2025-09-15" },
+  { name:"Alice Brown", program:"12-Month Mastery", status:"Exited", retention_stage:"Exited", member_value:450, fee_support_applied:"No", fee_support_amount:0, primary_exit_reason:"Financial", exit_date:"2026-01-15", date_confirm_retained:null, consultant:"Casey Park", customer_status:"Exited", createdAt:"2025-06-01" },
+  { name:"Mark Jensen", program:"3-Month Kickstart", status:"Active", retention_stage:"Retained", member_value:190, fee_support_applied:"Yes", fee_support_amount:50, primary_exit_reason:null, exit_date:null, date_confirm_retained:"2025-11-20", consultant:"Jamie Lee", customer_status:"Retained", createdAt:"2025-10-01" },
+  { name:"Priya Kapoor", program:"12-Month Mastery", status:"Exited", retention_stage:"Exited", member_value:450, fee_support_applied:"No", fee_support_amount:0, primary_exit_reason:"Time Constraints", exit_date:"2026-02-01", date_confirm_retained:null, consultant:"Casey Park", customer_status:"Exited", createdAt:"2025-07-01" },
+  { name:"Josh Walker", program:"6-Month Program", status:"Active", retention_stage:"Retained", member_value:280, fee_support_applied:"No", fee_support_amount:0, primary_exit_reason:null, exit_date:null, date_confirm_retained:"2025-12-10", consultant:"Casey Park", customer_status:"Retained", createdAt:"2025-09-01" },
+  { name:"Emma Davis", program:"3-Month Kickstart", status:"Active", retention_stage:"Review", member_value:190, fee_support_applied:"Yes", fee_support_amount:60, primary_exit_reason:null, exit_date:null, date_confirm_retained:null, consultant:"Jamie Lee", customer_status:"Review", createdAt:"2026-01-05" },
+  { name:"Liam Okafor", program:"12-Month Mastery", status:"Active", retention_stage:"Retained", member_value:450, fee_support_applied:"No", fee_support_amount:0, primary_exit_reason:null, exit_date:null, date_confirm_retained:"2026-01-08", consultant:"Jamie Lee", customer_status:"Retained", createdAt:"2025-08-15" },
+  { name:"Chloe Martin", program:"6-Month Program", status:"Exited", retention_stage:"Exited", member_value:280, fee_support_applied:"Yes", fee_support_amount:70, primary_exit_reason:"Financial", exit_date:"2026-03-01", date_confirm_retained:null, consultant:"Casey Park", customer_status:"Exited", createdAt:"2025-08-01" },
+  { name:"Ryan Thompson", program:"12-Month Mastery", status:"Active", retention_stage:"Retained", member_value:450, fee_support_applied:"No", fee_support_amount:0, primary_exit_reason:null, exit_date:null, date_confirm_retained:"2025-11-01", consultant:"Casey Park", customer_status:"Retained", createdAt:"2025-07-20" },
+];
+
+
+}
+
+  loadData();
+}
+async function loadData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('loading'); btn.textContent = '↻ Loading...'; hideError();
+  try {
+    const res = await fetch('/api/opportunities');
+    const data = await res.json();
+    if (data.error === 'not_configured') { loadDemoData(); return; }
+    if (!res.ok) throw new Error(data.error || 'API error');
+    usingDemo = false;
+    document.getElementById('demoBanner').style.display = 'none';
+    processAndRender(data.opportunities || []); updateSyncLabel(true);
+  } catch (err) {
+    showError('Could not load live data: ' + err.message + '. Showing demo data.');
+    loadDemoData();
+  } finally { btn.classList.remove('loading'); btn.textContent = '↻ Refresh'; }
+}
+// Data fetched via /api/opportunities proxy (see api/opportunities.js)
+function parseOpportunity(opp) {
+  return {
+    name: opp.contact?.name || opp.name || 'Unknown',
+    program: getCustomFieldByKey(opp,'program') || '—',
+    status: opp.status || '—',
+    retention_stage: getCustomFieldByKey(opp,'retention_stage') || (opp.status||'').toLowerCase(),
+    customer_status: getCustomFieldByKey(opp,'customer_status') || '—',
+    member_value: parseFloat(getCustomFieldByKey(opp,'member_value') || opp.monetaryValue || 0),
+    fee_support_applied: getCustomFieldByKey(opp,'fee_support_applied') || 'No',
+    fee_support_amount: parseFloat(getCustomFieldByKey(opp,'fee_support_amount') || 0),
+    primary_exit_reason: getCustomFieldByKey(opp,'primary_exit_reason') || null,
+    exit_date: getCustomFieldByKey(opp,'exit_date') || null,
+    date_confirm_retained: getCustomFieldByKey(opp,'date_confirm_retained') || null,
+    consultant: opp.assignedTo?.name || getCustomFieldByKey(opp,'consultant') || 'Unassigned',
+    createdAt: opp.createdAt || '',
+  };
+}
+function getCustomFieldByKey(opp, key) {
+  const f = (opp.customFields||[]).find(f => f.key===key || f.fieldKey===key);
+  return f ? f.fieldValue : null;
+}
+function onDateRangeChange() {
+  activeDateRange = document.getElementById('dateRangeSelect').value;
+  const customRow = document.getElementById('customDateRow');
+  if (activeDateRange === 'custom') {
+    customRow.style.display = 'flex';
+    // Set sensible defaults for custom range
+    const today = new Date();
+    const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 6, 1);
+    if (!document.getElementById('customDateFrom').value)
+      document.getElementById('customDateFrom').value = sixMonthsAgo.toISOString().split('T')[0];
+    if (!document.getElementById('customDateTo').value)
+      document.getElementById('customDateTo').value = today.toISOString().split('T')[0];
+  } else {
+    customRow.style.display = 'none';
+  }
+  applyDateFilter();
+}
+function applyDateFilter() {
+  activeDateRange = document.getElementById('dateRangeSelect').value;
+  const { start, end, label } = getDateBounds();
+  document.getElementById('dateRangeActiveLabel').textContent = label;
+  const filtered = activeDateRange === 'all' ? allOpportunities : allOpportunities.filter(o => {
+    const d = getOpportunityDate(o);
+    if (!d) return true; // include undated records
+    return d >= start && d <= end;
+  });
+  renderWithData(filtered);
+}
+function getOpportunityDate(o) {
+  const raw = o.date_confirm_retained || o.exit_date || o.createdAt || '';
+  if (!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d) ? null : d;
+}
+function getDateBounds() {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  switch (activeDateRange) {
+    case 'this_month': {
+      const s = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { start: s, end: today, label: now.toLocaleString('default', { month: 'long', year: 'numeric' }) };
+    }
+    case 'last_month': {
+      const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const e = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+      const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return { start: s, end: e, label: lm.toLocaleString('default', { month: 'long', year: 'numeric' }) };
+    }
+    case 'last_3': {
+      const s = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+      return { start: s, end: today, label: 'Last 3 Months' };
+    }
+    case 'last_6': {
+      const s = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+      return { start: s, end: today, label: 'Last 6 Months' };
+    }
+    case 'this_year': {
+      const s = new Date(now.getFullYear(), 0, 1);
+      return { start: s, end: today, label: `${now.getFullYear()}` };
+    }
+    case 'last_year': {
+      const s = new Date(now.getFullYear() - 1, 0, 1);
+      const e = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
+      return { start: s, end: e, label: `${now.getFullYear() - 1}` };
+    }
+    case 'custom': {
+      const fromVal = document.getElementById('customDateFrom').value;
+      const toVal = document.getElementById('customDateTo').value;
+      const s = fromVal ? new Date(fromVal) : new Date(0);
+      const e = toVal ? new Date(toVal + 'T23:59:59') : today;
+      const fmt = d => d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' });
+      return { start: s, end: e, label: `${fmt(s)} – ${fmt(e)}` };
+    }
+    default:
+      return { start: new Date(0), end: today, label: 'All Time' };
+  }
+}
+
+  usingDemo = true;
+  document.getElementById('demoBanner').style.display = 'flex';
+  processAndRender(DEMO); updateSyncLabel(false);
+}
+function processAndRender(opportunities) {
+  allOpportunities = opportunities;
+  applyDateFilter();
+}
+function renderWithData(opportunities) {
+  const retained = opportunities.filter(o=>isRetained(o));
+  const exited   = opportunities.filter(o=>isExited(o));
+  const review   = opportunities.filter(o=>isReview(o));
+  const total    = opportunities.length;
+  const retRate  = total>0 ? ((retained.length/total)*100).toFixed(1) : '0.0';
+  const mrr = retained.reduce((s,o)=>s+(o.member_value||0),0);
+  const fsc = opportunities.filter(o=>o.fee_support_applied==='Yes'||o.fee_support_applied==='yes'||o.fee_support_applied===true);
+  const feeTotal = fsc.reduce((s,o)=>s+(o.fee_support_amount||0),0);
+  setText('kpi-rate', retRate+'%');
+  setText('kpi-rate-sub', `${retained.length} of ${total} clients retained`);
+  setText('kpi-mrr', '$'+mrr.toLocaleString());
+  setText('kpi-saved', '$'+feeTotal.toLocaleString());
+  setText('kpi-feesupport', fsc.length);
+  setText('kpi-feesupport-sub', `${fsc.length} clients on support`);
+  setText('kpi-review', review.length);
+  setText('kpi-total', total);
+  updateDonut(parseFloat(retRate), retained.length, exited.length, review.length);
+  renderMonthlyTrend(opportunities);
+  renderExitReasons(exited);
+  filteredClients = [...opportunities]; currentPage=1;
+  renderClientsTable(); renderConsultants(opportunities); renderPrograms(opportunities);
+}
+function isRetained(o){ const s=(o.retention_stage||o.customer_status||o.status||'').toLowerCase(); return s.includes('retain'); }
+function isExited(o)  { const s=(o.retention_stage||o.customer_status||o.status||'').toLowerCase(); return s.includes('exit')||s.includes('cancel')||s.includes('lost'); }
+function isReview(o)  { const s=(o.retention_stage||o.customer_status||o.status||'').toLowerCase(); return s.includes('review')||s.includes('risk')||s.includes('at-risk'); }
+function updateDonut(pct, retained, exited, review) {
+  const circ=389.6, total=retained+exited+review||1;
+  const ra=(retained/total)*circ, ea=(exited/total)*circ;
+  document.getElementById('donut-retained').setAttribute('stroke-dasharray',`${ra} ${circ}`);
+  document.getElementById('donut-retained').setAttribute('stroke-dashoffset',`${circ-ea}`);
+  document.getElementById('donut-exited').setAttribute('stroke-dasharray',`${ea} ${circ}`);
+  document.getElementById('donut-exited').setAttribute('stroke-dashoffset','0');
+  setText('donut-pct', pct+'%');
+  setText('leg-retained', `${retained} Retained`);
+  setText('leg-exited', `${exited} Exited`);
+  setText('leg-review', `${review} Review`);
+}
+function renderMonthlyTrend(opps) {
+  const months=getLast6Months();
+  const barsArea=document.getElementById('barsArea'), barLabels=document.getElementById('barLabels');
+  const md=months.map(m=>{
+    const mo=opps.filter(o=>(o.date_confirm_retained||o.exit_date||o.createdAt||'').startsWith(m.key));
+    return { label:m.label, retained:mo.filter(o=>isRetained(o)).length, exited:mo.filter(o=>isExited(o)).length };
+  });
+  const maxVal=Math.max(...md.map(m=>m.retained+m.exited),1);
+  barsArea.innerHTML=md.map(m=>`<div class="bar-group"><div class="bar bar-retained" style="height:${Math.max((m.retained/maxVal)*100,2)}%" title="${m.retained} retained"></div><div class="bar bar-exited" style="height:${Math.max((m.exited/maxVal)*100,2)}%" title="${m.exited} exited"></div></div>`).join('');
+  barLabels.innerHTML=md.map(m=>`<div class="bar-label">${m.label}</div>`).join('');
+}
+function getLast6Months(){
+  const months=[],now=new Date();
+  for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,label:d.toLocaleString('default',{month:'short'})});}
+  return months;
+}
+function renderExitReasons(exited){
+  const counts={};
+  exited.forEach(o=>{const r=o.primary_exit_reason||'Unknown';counts[r]=(counts[r]||0)+1;});
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const el=document.getElementById('exitReasons');
+  if(sorted.length===0){el.innerHTML='<div style="color:var(--muted2);font-size:13px;grid-column:1/-1">No exits recorded</div>';return;}
+  el.innerHTML=sorted.map(([r,c])=>`<div class="reason-item"><span class="reason-label">${r}</span><span class="reason-count">${c}</span></div>`).join('');
+}
+function filterClients(){
+  const q=document.getElementById('clientSearch').value.toLowerCase();
+  filteredClients=allOpportunities.filter(o=>(o.name||'').toLowerCase().includes(q)||(o.program||'').toLowerCase().includes(q));
+  currentPage=1; renderClientsTable();
+}
+function renderClientsTable(){
+  const start=(currentPage-1)*PAGE_SIZE, end=start+PAGE_SIZE, page=filteredClients.slice(start,end);
+  const tbody=document.getElementById('clientsBody');
+  if(page.length===0){tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><h3>No clients found</h3><p>Try a different search</p></div></td></tr>`;}
+  else{tbody.innerHTML=page.map(o=>`<tr><td><strong>${o.name}</strong></td><td>${o.program||'—'}</td><td>${statusBadge(o.customer_status||o.status)}</td><td>${o.retention_stage||'—'}</td><td>${o.member_value?'$'+o.member_value.toLocaleString():'—'}</td><td>${feeSupportBadge(o)}</td><td>${outcomeBadge(o)}</td><td>${o.exit_date?formatDate(o.exit_date):'—'}</td></tr>`).join('');}
+  const total=filteredClients.length, totalPages=Math.ceil(total/PAGE_SIZE);
+  document.getElementById('paginationInfo').textContent=`${start+1}–${Math.min(end,total)} of ${total} clients`;
+  document.getElementById('pageButtons').innerHTML=`<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage<=1?'disabled':''}>‹</button>${Array.from({length:Math.min(totalPages,5)},(_,i)=>{const p=i+Math.max(1,currentPage-2);if(p>totalPages)return'';return`<button class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;}).join('')}<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage>=totalPages?'disabled':''}>›</button>`;
+}
+function goPage(p){const tp=Math.ceil(filteredClients.length/PAGE_SIZE);if(p<1||p>tp)return;currentPage=p;renderClientsTable();}
+function statusBadge(s){const sl=(s||'').toLowerCase();if(sl.includes('retain'))return`<span class="badge badge-retained">Retained</span>`;if(sl.includes('exit')||sl.includes('cancel'))return`<span class="badge badge-exited">Exited</span>`;if(sl.includes('review')||sl.includes('risk'))return`<span class="badge badge-review">Review</span>`;return`<span class="badge badge-active">${s||'Active'}</span>`;}
+function outcomeBadge(o){if(isRetained(o))return`<span class="badge badge-retained">Retained</span>`;if(isExited(o))return`<span class="badge badge-exited">Exited</span>`;if(isReview(o))return`<span class="badge badge-review">Review</span>`;return`<span class="badge badge-active">Active</span>`;}
+function feeSupportBadge(o){const a=o.fee_support_applied==='Yes'||o.fee_support_applied==='yes'||o.fee_support_applied===true;if(a)return`<span class="badge badge-yes">Yes — $${o.fee_support_amount||0}</span>`;return`<span class="badge badge-no">No</span>`;}
+function formatDate(d){if(!d)return'—';const dt=new Date(d);return isNaN(dt)?d:dt.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'2-digit'});}
+function renderConsultants(opps){
+  opps = opps || allOpportunities;
+  const map={};
+  opps.forEach(o=>{const c=o.consultant||'Unassigned';if(!map[c])map[c]={total:0,retained:0,exited:0,review:0,mrr:0};map[c].total++;if(isRetained(o)){map[c].retained++;map[c].mrr+=(o.member_value||0);}if(isExited(o))map[c].exited++;if(isReview(o))map[c].review++;});
+  const tbody=document.getElementById('consultantsBody');
+  const rows=Object.entries(map).sort((a,b)=>b[1].retained-a[1].retained);
+  if(rows.length===0){tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><h3>No data</h3></div></td></tr>`;return;}
+  tbody.innerHTML=rows.map(([name,d])=>{const rate=d.total>0?((d.retained/d.total)*100).toFixed(1):'0.0';const rc=parseFloat(rate)>=70?'var(--eggplant)':parseFloat(rate)>=50?'var(--orange)':'var(--salmon)';return`<tr><td><strong>${name}</strong></td><td>${d.total}</td><td style="color:var(--eggplant);font-weight:600">${d.retained}</td><td style="color:var(--salmon);font-weight:600">${d.exited}</td><td style="color:var(--orange);font-weight:600">${d.review}</td><td><span style="color:${rc};font-weight:700;font-family:'Lexend',sans-serif">${rate}%</span></td><td style="font-weight:600">$${d.mrr.toLocaleString()}</td></tr>`;}).join('');
+}
+function renderPrograms(opps){
+  opps = opps || allOpportunities;
+  const map={};
+  opps.forEach(o=>{const p=o.program||'Unknown';if(!map[p])map[p]={total:0,retained:0,exited:0,mrr:0};map[p].total++;if(isRetained(o)){map[p].retained++;map[p].mrr+=(o.member_value||0);}if(isExited(o))map[p].exited++;});
+  const grid=document.getElementById('programsGrid');
+  const programs=Object.entries(map).sort((a,b)=>b[1].total-a[1].total);
+  if(programs.length===0){grid.innerHTML=`<div class="program-card"><div class="empty-state" style="padding:20px 0"><h3>No data</h3></div></div>`;return;}
+  grid.innerHTML=programs.map(([name,d])=>{const rate=d.total>0?((d.retained/d.total)*100).toFixed(1):'0.0';return`<div class="program-card"><div class="program-name">${name}</div><div class="program-stat"><span class="program-stat-label">Total Clients</span><span class="program-stat-value">${d.total}</span></div><div class="program-stat"><span class="program-stat-label">Retained</span><span class="program-stat-value" style="color:var(--eggplant)">${d.retained}</span></div><div class="program-stat"><span class="program-stat-label">Exited</span><span class="program-stat-value" style="color:var(--salmon)">${d.exited}</span></div><div class="program-stat"><span class="program-stat-label">Active MRR</span><span class="program-stat-value">$${d.mrr.toLocaleString()}</span></div><div class="program-stat"><span class="program-stat-label">Retention Rate</span><span class="program-stat-value" style="color:var(--eggplant);font-family:'Lexend',sans-serif;font-weight:700">${rate}%</span></div><div class="program-bar-bg"><div class="program-bar-fill" style="width:${rate}%"></div></div></div>`;}).join('');
+}
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelector(`.tab[onclick="switchTab('${name}')"]`).classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+}
+function setText(id,val){const el=document.getElementById(id);if(el)el.textContent=val;}
+function showError(msg){const b=document.getElementById('errorBanner');b.style.display='flex';document.getElementById('errorText').textContent=msg;}
+function hideError(){document.getElementById('errorBanner').style.display='none';}
+function updateSyncLabel(live){
+  const dot=document.getElementById('syncDot'),label=document.getElementById('syncLabel');
+  const now=new Date().toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(live){dot.style.background='var(--violet)';label.textContent=`Live data — Last synced ${now}`;}
+  else{dot.style.background='var(--orange)';label.textContent=`Demo data — ${now}`;}
+}
+loadData();
+</script>
+</body>
+</html>
