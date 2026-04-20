@@ -13,44 +13,36 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'not_configured' });
   }
 
+  const headers = {
+    'Authorization': `Bearer ${apiKey}`,
+    'Version': '2021-07-28',
+    'Content-Type': 'application/json'
+  };
+
   try {
-    // First fetch pipeline stages so we can map stageId -> stageName
-    const pipelineUrl = `https://services.leadconnectorhq.com/opportunities/pipelines/${pipelineId}?locationId=${locationId}`;
-    const pipelineRes = await fetch(pipelineUrl, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Version': '2021-07-28',
-        'Content-Type': 'application/json'
-      }
-    });
-
+    // Fetch all pipelines for this location to find stage names
     let stageMap = {};
-    if (pipelineRes.ok) {
-      const pipelineData = await pipelineRes.json();
-      const stages = (pipelineData.pipeline || pipelineData).stages || [];
-      stages.forEach(function(s) {
-        stageMap[s.id] = s.name;
-      });
-    }
+    try {
+      const plRes = await fetch(`https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${locationId}`, { headers });
+      if (plRes.ok) {
+        const plData = await plRes.json();
+        const pipelines = plData.pipelines || [];
+        const ourPipeline = pipelines.find(p => p.id === pipelineId);
+        if (ourPipeline && ourPipeline.stages) {
+          ourPipeline.stages.forEach(s => { stageMap[s.id] = s.name; });
+        }
+      }
+    } catch(e) {}
 
-    // Now fetch all opportunities
+    // Fetch all opportunities
     let all = [], page = 1, hasMore = true;
-
     while (hasMore) {
       const url = `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&page=${page}&limit=100`;
-      const r = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Version': '2021-07-28',
-          'Content-Type': 'application/json'
-        }
-      });
-
+      const r = await fetch(url, { headers });
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
         return res.status(r.status).json({ error: e.message || `GHL error ${r.status}` });
       }
-
       const data = await r.json();
       const opps = data.opportunities || [];
       all = all.concat(opps);
@@ -59,15 +51,17 @@ module.exports = async function handler(req, res) {
       else page++;
     }
 
+    // Show first raw opportunity for debugging
+    const firstRaw = all[0] || {};
+    const debugKeys = Object.keys(firstRaw);
+
     const parsed = all.map(o => {
-      // Try to get stage name from stageMap, then various fields in the response
       const stageName = stageMap[o.pipelineStageId] ||
                         stageMap[o.stageId] ||
                         o.pipelineStage?.name ||
-                        o.pipelineStageName ||
+                        o.stageName ||
                         field(o, 'retention_stage') ||
                         o.status || '';
-
       return {
         name:                  o.contact?.name || o.name || 'Unknown',
         program:               field(o, 'program'),
@@ -80,13 +74,25 @@ module.exports = async function handler(req, res) {
         exit_date:             field(o, 'exit_date') || null,
         date_confirm_retained: field(o, 'date_confirm_retained') || null,
         consultant:            o.assignedTo?.name || field(o, 'consultant') || 'Unassigned',
-        createdAt:             o.createdAt || '',
-        // Include raw fields for debugging
-        _pipelineStageId:      o.pipelineStageId || o.stageId || null
+        createdAt:             o.createdAt || ''
       };
     });
 
-    return res.status(200).json({ opportunities: parsed, stageMap });
+    return res.status(200).json({
+      opportunities: parsed,
+      debug: {
+        stageMap,
+        totalOpps: all.length,
+        firstOppKeys: debugKeys,
+        firstOppStageFields: {
+          pipelineStageId: firstRaw.pipelineStageId,
+          stageId: firstRaw.stageId,
+          pipelineStage: firstRaw.pipelineStage,
+          stageName: firstRaw.stageName,
+          status: firstRaw.status
+        }
+      }
+    });
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
