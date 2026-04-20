@@ -20,7 +20,7 @@ module.exports = async function handler(req, res) {
   };
 
   try {
-    // Fetch all pipelines for this location to find stage names
+    // 1. Fetch pipeline stage names
     let stageMap = {};
     try {
       const plRes = await fetch(`https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${locationId}`, { headers });
@@ -34,7 +34,7 @@ module.exports = async function handler(req, res) {
       }
     } catch(e) {}
 
-    // Fetch all opportunities
+    // 2. Fetch all opportunities
     let all = [], page = 1, hasMore = true;
     while (hasMore) {
       const url = `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&page=${page}&limit=100`;
@@ -51,17 +51,44 @@ module.exports = async function handler(req, res) {
       else page++;
     }
 
-    // Show first raw opportunity for debugging
-    const firstRaw = all[0] || {};
-    const debugKeys = Object.keys(firstRaw);
+    // 3. Fetch contact details in batches of 10 to get consultantcoach field
+    const contactIds = [...new Set(all.map(o => o.contact?.id || o.contactId).filter(Boolean))];
+    const contactMap = {};
 
+    // Fetch contacts in parallel batches of 10
+    for (let i = 0; i < contactIds.length; i += 10) {
+      const batch = contactIds.slice(i, i + 10);
+      await Promise.all(batch.map(async (contactId) => {
+        try {
+          const cRes = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}`, { headers });
+          if (cRes.ok) {
+            const cData = await cRes.json();
+            const contact = cData.contact || cData;
+            // Find consultantcoach in custom fields
+            const customFields = contact.customFields || contact.customField || [];
+            const consultantField = customFields.find(f =>
+              f.key === 'consultantcoach' ||
+              f.fieldKey === 'consultantcoach' ||
+              (f.key && f.key.includes('consultant'))
+            );
+            contactMap[contactId] = {
+              consultantcoach: consultantField ? (consultantField.fieldValue || consultantField.value) : null
+            };
+          }
+        } catch(e) {}
+      }));
+    }
+
+    // 4. Parse opportunities with consultant data
     const parsed = all.map(o => {
+      const contactId = o.contact?.id || o.contactId;
+      const contactData = contactMap[contactId] || {};
       const stageName = stageMap[o.pipelineStageId] ||
                         stageMap[o.stageId] ||
                         o.pipelineStage?.name ||
-                        o.stageName ||
                         field(o, 'retention_stage') ||
                         o.status || '';
+
       return {
         name:                  o.contact?.name || o.name || 'Unknown',
         program:               field(o, 'program'),
@@ -73,26 +100,12 @@ module.exports = async function handler(req, res) {
         primary_exit_reason:   field(o, 'primary_exit_reason') || null,
         exit_date:             field(o, 'exit_date') || null,
         date_confirm_retained: field(o, 'date_confirm_retained') || null,
-        consultant:            field(o, 'consultantcoach') || fieldContact(o, 'consultantcoach') || o.assignedTo?.name || field(o, 'consultant') || 'Unassigned',
+        consultant:            contactData.consultantcoach || o.assignedTo?.name || 'Unassigned',
         createdAt:             o.createdAt || ''
       };
     });
 
-    return res.status(200).json({
-      opportunities: parsed,
-      debug: {
-        stageMap,
-        totalOpps: all.length,
-        firstOppKeys: debugKeys,
-        firstOppStageFields: {
-          pipelineStageId: firstRaw.pipelineStageId,
-          stageId: firstRaw.stageId,
-          pipelineStage: firstRaw.pipelineStage,
-          stageName: firstRaw.stageName,
-          status: firstRaw.status
-        }
-      }
-    });
+    return res.status(200).json({ opportunities: parsed });
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -102,13 +115,4 @@ module.exports = async function handler(req, res) {
 function field(opp, key) {
   const f = (opp.customFields || []).find(f => f.key === key || f.fieldKey === key);
   return f ? (f.fieldValue || f.value || null) : null;
-}
-
-function fieldContact(opp, key) {
-  const contact = opp.contact || {};
-  // Check contact customFields
-  const f = (contact.customFields || contact.customField || []).find(f => f.key === key || f.fieldKey === key || f.id === key);
-  if (f) return f.fieldValue || f.value || null;
-  // Check direct contact properties
-  return contact[key] || null;
 }
