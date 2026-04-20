@@ -418,27 +418,6 @@ async function loadData() {
   } finally { btn.classList.remove('loading'); btn.textContent = '↻ Refresh'; }
 }
 // Data fetched via /api/opportunities proxy (see api/opportunities.js)
-function parseOpportunity(opp) {
-  return {
-    name: opp.contact?.name || opp.name || 'Unknown',
-    program: getCustomFieldByKey(opp,'program') || '—',
-    status: opp.status || '—',
-    retention_stage: getCustomFieldByKey(opp,'retention_stage') || (opp.status||'').toLowerCase(),
-    customer_status: getCustomFieldByKey(opp,'customer_status') || '—',
-    member_value: parseFloat(getCustomFieldByKey(opp,'member_value') || opp.monetaryValue || 0),
-    fee_support_applied: getCustomFieldByKey(opp,'fee_support_applied') || 'No',
-    fee_support_amount: parseFloat(getCustomFieldByKey(opp,'fee_support_amount') || 0),
-    primary_exit_reason: getCustomFieldByKey(opp,'primary_exit_reason') || null,
-    exit_date: getCustomFieldByKey(opp,'exit_date') || null,
-    date_confirm_retained: getCustomFieldByKey(opp,'date_confirm_retained') || null,
-    consultant: opp.assignedTo?.name || getCustomFieldByKey(opp,'consultant') || 'Unassigned',
-    createdAt: opp.createdAt || '',
-  };
-}
-function getCustomFieldByKey(opp, key) {
-  const f = (opp.customFields||[]).find(f => f.key===key || f.fieldKey===key);
-  return f ? f.fieldValue : null;
-}
 function onDateRangeChange() {
   activeDateRange = document.getElementById('dateRangeSelect').value;
   const customRow = document.getElementById('customDateRow');
