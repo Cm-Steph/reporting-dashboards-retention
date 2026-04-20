@@ -548,9 +548,18 @@ function renderWithData(opportunities) {
   filteredClients = [...opportunities]; currentPage=1;
   renderClientsTable(); renderConsultants(opportunities); renderPrograms(opportunities);
 }
-function isRetained(o){ const s=(o.retention_stage||o.customer_status||o.status||'').toLowerCase(); return s.includes('retain'); }
-function isExited(o)  { const s=(o.retention_stage||o.customer_status||o.status||'').toLowerCase(); return s.includes('exit')||s.includes('cancel')||s.includes('lost'); }
-function isReview(o)  { const s=(o.retention_stage||o.customer_status||o.status||'').toLowerCase(); return s.includes('review')||s.includes('risk')||s.includes('at-risk'); }
+function isRetained(o){
+  const s=(o.retention_stage||o.customer_status||o.status||'').toLowerCase();
+  return s.includes('closed retained')||s.includes('retained - temp pause')||s.includes('fee support')||s.includes('retain in progress');
+}
+function isExited(o){
+  const s=(o.retention_stage||o.customer_status||o.status||'').toLowerCase();
+  return s.includes('exited')||s.includes('exit in progress');
+}
+function isReview(o){
+  const s=(o.retention_stage||o.customer_status||o.status||'').toLowerCase();
+  return s.includes('request received')||s.includes('waiting for solution')||s.includes('in deliberation');
+}
 function updateDonut(pct, retained, exited, review) {
   const circ=389.6, total=retained+exited+review||1;
   const ra=(retained/total)*circ, ea=(exited/total)*circ;
