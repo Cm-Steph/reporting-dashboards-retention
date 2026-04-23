@@ -1,7 +1,7 @@
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  const apiKey    = process.env.GHL_API_KEY;
+  const apiKey     = process.env.GHL_API_KEY;
   const locationId = process.env.GHL_LOCATION_ID;
   const pipelineId = process.env.GHL_PIPELINE_ID;
 
@@ -16,34 +16,31 @@ module.exports = async function handler(req, res) {
   };
 
   try {
-    // Get first opportunity to find a contact ID
-    const oppRes = await fetch(
-      `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&page=1&limit=1`,
+    // Search for Joe Keain specifically
+    const searchRes = await fetch(
+      `https://services.leadconnectorhq.com/contacts/?locationId=${locationId}&query=Joe+Keain&limit=5`,
       { headers }
     );
-    const oppData = await oppRes.json();
-    const firstOpp = (oppData.opportunities || [])[0] || {};
-    const contactId = firstOpp.contact?.id || firstOpp.contactId;
+    const searchData = await searchRes.json();
+    const contacts = searchData.contacts || [];
+    const joe = contacts[0];
 
-    if (!contactId) {
-      return res.status(200).json({ error: 'No contact ID found on first opportunity', firstOpp });
+    if (!joe) {
+      return res.status(200).json({ error: 'Joe Keain not found', searchData });
     }
 
-    // Fetch the full contact
+    // Fetch full contact
     const contactRes = await fetch(
-      `https://services.leadconnectorhq.com/contacts/${contactId}`,
+      `https://services.leadconnectorhq.com/contacts/${joe.id}`,
       { headers }
     );
     const contactData = await contactRes.json();
     const contact = contactData.contact || contactData;
 
-    // Return everything so we can see the exact structure
     return res.status(200).json({
-      contactId,
-      contactName: contact.name,
-      customFields: contact.customFields || contact.customField || [],
-      allContactKeys: Object.keys(contact),
-      rawContact: contact
+      contactId: joe.id,
+      contactName: contact.firstName + ' ' + contact.lastName,
+      customFields: contact.customFields || []
     });
 
   } catch (err) {
