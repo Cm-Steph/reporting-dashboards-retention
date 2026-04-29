@@ -5,9 +5,10 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const apiKey     = process.env.GHL_API_KEY;
-  const locationId = process.env.GHL_LOCATION_ID;
-  const pipelineId = process.env.GHL_PIPELINE_ID;
+  const apiKey      = process.env.GHL_API_KEY;
+  const locationId  = process.env.GHL_LOCATION_ID;
+  const pipelineId  = process.env.GHL_PIPELINE_ID;
+  const coachingId  = process.env.GHL_COACHING_PIPELINE_ID; // Coaches & Members pipeline
 
   if (!apiKey || !locationId || !pipelineId) {
     return res.status(500).json({ error: 'not_configured' });
@@ -19,25 +20,8 @@ module.exports = async function handler(req, res) {
     'Content-Type': 'application/json'
   };
 
-  // If ?debug=contact is passed, return raw contact data for first opportunity
-  if (req.query && req.query.debug === 'contact') {
-    try {
-      const url = `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&page=1&limit=1`;
-      const r = await fetch(url, { headers });
-      const data = await r.json();
-      const firstOpp = (data.opportunities || [])[0] || {};
-      const contactId = firstOpp.contact?.id || firstOpp.contactId;
-      if (!contactId) return res.status(200).json({ error: 'no contact id found', firstOpp });
-      const cRes = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}`, { headers });
-      const cData = await cRes.json();
-      return res.status(200).json({ contactId, rawContact: cData });
-    } catch(err) {
-      return res.status(500).json({ error: err.message });
-    }
-  }
-
   try {
-    // 1. Fetch pipeline stage names
+    // 1. Fetch pipeline stage names for retention pipeline
     let stageMap = {};
     try {
       const plRes = await fetch(`https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${locationId}`, { headers });
@@ -51,7 +35,7 @@ module.exports = async function handler(req, res) {
       }
     } catch(e) {}
 
-    // 2. Fetch all opportunities
+    // 2. Fetch all retention opportunities
     let all = [], page = 1, hasMore = true;
     while (hasMore) {
       const url = `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&page=${page}&limit=100`;
@@ -68,10 +52,9 @@ module.exports = async function handler(req, res) {
       else page++;
     }
 
-    // 3. Fetch contact details in batches to get consultantcoach
+    // 3. Fetch contact details to get consultantcoach field
     const contactIds = [...new Set(all.map(o => o.contact?.id || o.contactId).filter(Boolean))];
     const contactMap = {};
-
     for (let i = 0; i < contactIds.length; i += 10) {
       const batch = contactIds.slice(i, i + 10);
       await Promise.all(batch.map(async (contactId) => {
@@ -81,23 +64,47 @@ module.exports = async function handler(req, res) {
             const cData = await cRes.json();
             const contact = cData.contact || cData;
             const customFields = contact.customFields || contact.customField || [];
-            // Try every possible variation of the field key
-            const consultantField = customFields.find(f => {
-              const k = (f.key || f.fieldKey || f.id || '').toLowerCase();
-              return k === 'consultantcoach' ||
-                     k === 'consultant_coach' ||
-                     k === 'consultant' ||
-                     k.includes('consultant');
-            });
+            // Consultant/Coach field ID: RPp9VJnvNS0rVABGKkqC
+            const consultantField = customFields.find(f => f.id === 'RPp9VJnvNS0rVABGKkqC');
             contactMap[contactId] = consultantField
-              ? (consultantField.fieldValue || consultantField.value || null)
+              ? (Array.isArray(consultantField.value) ? consultantField.value[0] : consultantField.value) || null
               : null;
           }
         } catch(e) {}
       }));
     }
 
-    // 4. Parse and return
+    // 4. Fetch Coaches & Members pipeline data (if configured)
+    let coachingMap = {};
+    if (coachingId) {
+      try {
+        let coachOpps = [], cp = 1, cHasMore = true;
+        while (cHasMore) {
+          const url = `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${coachingId}&page=${cp}&limit=100`;
+          const r = await fetch(url, { headers });
+          if (!r.ok) { cHasMore = false; break; }
+          const data = await r.json();
+          const opps = data.opportunities || [];
+          coachOpps = coachOpps.concat(opps);
+          const total = (data.meta || {}).total || 0;
+          if (coachOpps.length >= total || opps.length === 0) cHasMore = false;
+          else cp++;
+        }
+        // Group coaching opps by consultant name
+        for (const o of coachOpps) {
+          const contactId = o.contact?.id || o.contactId;
+          const consultantName = contactMap[contactId] || o.assignedTo?.name || 'Unassigned';
+          if (!coachingMap[consultantName]) coachingMap[consultantName] = { total: 0, exited: 0 };
+          coachingMap[consultantName].total++;
+          const stageName = (o.status || '').toLowerCase();
+          if (stageName.includes('exit') || stageName.includes('cancel') || stageName.includes('lost')) {
+            coachingMap[consultantName].exited++;
+          }
+        }
+      } catch(e) {}
+    }
+
+    // 5. Parse retention opportunities
     const parsed = all.map(o => {
       const contactId = o.contact?.id || o.contactId;
       const stageName = stageMap[o.pipelineStageId] ||
@@ -121,7 +128,7 @@ module.exports = async function handler(req, res) {
       };
     });
 
-    return res.status(200).json({ opportunities: parsed });
+    return res.status(200).json({ opportunities: parsed, coachingMap });
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
