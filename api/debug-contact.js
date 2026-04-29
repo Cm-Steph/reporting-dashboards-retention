@@ -14,23 +14,29 @@ module.exports = async function handler(req, res) {
   };
 
   try {
-    // Get first few opportunities and show their raw customFields
-    const r = await fetch(
-      `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&page=1&limit=5`,
-      { headers }
-    );
-    const data = await r.json();
-    const opps = data.opportunities || [];
+    // Search all opportunities for Ben Bissett
+    let all = [], page = 1, hasMore = true;
+    while (hasMore) {
+      const r = await fetch(
+        `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&page=${page}&limit=100`,
+        { headers }
+      );
+      const data = await r.json();
+      const opps = data.opportunities || [];
+      all = all.concat(opps);
+      const total = (data.meta || {}).total || 0;
+      if (all.length >= total || opps.length === 0) hasMore = false;
+      else page++;
+    }
 
-    // Show custom fields for first opp that has some
-    const withFields = opps.find(o => (o.customFields || []).length > 0) || opps[0] || {};
+    const ben = all.find(o => (o.contact?.name || '').toLowerCase().includes('ben bissett'));
+    if (!ben) return res.status(200).json({ error: 'Ben Bissett not found', total: all.length });
 
     return res.status(200).json({
-      oppName: withFields.contact?.name,
-      oppStatus: withFields.status,
-      oppPipelineStageId: withFields.pipelineStageId,
-      customFields: withFields.customFields || [],
-      allOppKeys: Object.keys(withFields)
+      name: ben.contact?.name,
+      status: ben.status,
+      pipelineStageId: ben.pipelineStageId,
+      customFields: ben.customFields || []
     });
 
   } catch (err) {
