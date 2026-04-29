@@ -157,7 +157,7 @@ module.exports = async function handler(req, res) {
 
         status:                o.status || '',
         retention_stage:       stageName,
-        member_value:          getMemberValue((contactMap[contactId] && contactMap[contactId].program) || field(o, 'program') || ''),
+        member_value:          getMemberValue((contactMap[contactId] && contactMap[contactId].program) || field(o, 'program') || '', field(o, 'member_value'), o.monetaryValue),
         fee_support_applied:   field(o, 'fee_support_applied') || 'No',
         fee_support_amount:    parseFloat(field(o, 'fee_support_amount') || 0),
         primary_exit_reason:   field(o, 'primary_exit_reason') || null,
@@ -179,7 +179,11 @@ module.exports = async function handler(req, res) {
   }
 };
 
-function getMemberValue(program) {
+function getMemberValue(program, customFieldValue, monetaryValue) {
+  // If a custom field value is explicitly set, use that first
+  var custom = parseFloat(customFieldValue || monetaryValue || 0);
+  if (!isNaN(custom) && custom > 0) return custom;
+  // Otherwise fall back to program-based pricing
   var p = (program || '').toLowerCase();
   if (p.includes('business academy')) return 2300;
   if (p.includes('elevate')) return 1200;
