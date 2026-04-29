@@ -192,7 +192,30 @@ function getMemberValue(program, customFieldValue, monetaryValue) {
   return 0;
 }
 
+// Opportunity custom field ID map
+const OPP_FIELD_IDS = {
+  'exit_date':             'exit_date',    // will be resolved by key or id
+  'primary_exit_reason':   'primary_exit_reason',
+  'date_confirm_retained': 'date_confirm_retained',
+  'member_value':          'member_value',
+  'fee_support_applied':   'fee_support_applied',
+  'fee_support_amount':    'fee_support_amount',
+  'retention_stage':       'retention_stage',
+  'program':               'program'
+};
+
 function field(opp, key) {
-  const f = (opp.customFields || []).find(f => f.key === key || f.fieldKey === key);
-  return f ? (f.fieldValue || f.value || null) : null;
+  const fields = opp.customFields || opp.customField || [];
+  // Try matching by key, fieldKey, or id
+  const f = fields.find(f =>
+    f.key === key ||
+    f.fieldKey === key ||
+    f.id === key ||
+    (f.key && f.key.toLowerCase() === key.toLowerCase()) ||
+    (f.fieldKey && f.fieldKey.toLowerCase() === key.toLowerCase())
+  );
+  if (!f) return null;
+  const val = f.fieldValue || f.value;
+  if (Array.isArray(val)) return val[0] || null;
+  return val || null;
 }
