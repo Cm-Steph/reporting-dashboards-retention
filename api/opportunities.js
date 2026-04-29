@@ -1,4 +1,19 @@
+// Helper to pause between batches to avoid rate limiting
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Simple in-memory cache — 5 minute TTL
+let cache = null;
+let cacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 module.exports = async function handler(req, res) {
+  // Return cached data if fresh (unless ?refresh=1 is passed)
+  const forceRefresh = req.query && req.query.refresh === '1';
+  if (!forceRefresh && cache && (Date.now() - cacheTime) < CACHE_TTL) {
+    res.setHeader('X-Cache', 'HIT');
+    return res.status(200).json(cache);
+  }
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -55,8 +70,8 @@ module.exports = async function handler(req, res) {
     // 3. Fetch contact details to get consultantcoach field
     const contactIds = [...new Set(all.map(o => o.contact?.id || o.contactId).filter(Boolean))];
     const contactMap = {};
-    for (let i = 0; i < contactIds.length; i += 10) {
-      const batch = contactIds.slice(i, i + 10);
+    for (let i = 0; i < contactIds.length; i += 5) {
+      const batch = contactIds.slice(i, i + 5);
       await Promise.all(batch.map(async (contactId) => {
         try {
           const cRes = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}`, { headers });
@@ -72,6 +87,8 @@ module.exports = async function handler(req, res) {
           }
         } catch(e) {}
       }));
+      // Small delay between batches to avoid rate limiting
+      if (i + 5 < contactIds.length) await sleep(200);
     }
 
     // 4. Fetch Coaches & Members pipeline data (if configured)
@@ -144,7 +161,10 @@ module.exports = async function handler(req, res) {
       };
     });
 
-    return res.status(200).json({ opportunities: parsed, coachingMap });
+    const result = { opportunities: parsed, coachingMap };
+    cache = result;
+    cacheTime = Date.now();
+    return res.status(200).json(result);
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
