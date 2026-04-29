@@ -192,30 +192,32 @@ function getMemberValue(program, customFieldValue, monetaryValue) {
   return 0;
 }
 
-// Opportunity custom field ID map
-const OPP_FIELD_IDS = {
-  'exit_date':             'exit_date',    // will be resolved by key or id
-  'primary_exit_reason':   'primary_exit_reason',
-  'date_confirm_retained': 'date_confirm_retained',
-  'member_value':          'member_value',
-  'fee_support_applied':   'fee_support_applied',
-  'fee_support_amount':    'fee_support_amount',
-  'retention_stage':       'retention_stage',
-  'program':               'program'
+// Opportunity custom field IDs (hardcoded from GHL API inspection)
+const OPP_FIELDS = {
+  program:               'CkXgGyUIxQUUKeU1vx6J',
+  primary_exit_reason:   '9ZR6rfSnZhPydvQCL00c',
+  exit_date:             '72LmzM8l0hTIqRRSeXob',
+  date_confirm_retained: 'gEIzAUmEul1aOS1sTvBf'
+  // fee_support_applied, fee_support_amount, member_value - add IDs when confirmed
 };
 
 function field(opp, key) {
   const fields = opp.customFields || opp.customField || [];
-  // Try matching by key, fieldKey, or id
-  const f = fields.find(f =>
-    f.key === key ||
-    f.fieldKey === key ||
-    f.id === key ||
-    (f.key && f.key.toLowerCase() === key.toLowerCase()) ||
-    (f.fieldKey && f.fieldKey.toLowerCase() === key.toLowerCase())
-  );
+  // First try by hardcoded ID
+  const fieldId = OPP_FIELDS[key];
+  let f = fieldId ? fields.find(f => f.id === fieldId) : null;
+  // Fall back to key/fieldKey matching
+  if (!f) f = fields.find(f => f.key === key || f.fieldKey === key || f.id === key);
   if (!f) return null;
-  const val = f.fieldValue || f.value;
+  // Handle date timestamps (GHL returns ms timestamps for date fields)
+  if (f.type === 'date' || f.fieldValueDate) {
+    const ts = f.fieldValueDate || f.value;
+    if (ts && !isNaN(ts)) {
+      return new Date(Number(ts)).toISOString().split('T')[0];
+    }
+  }
+  // Handle string fields
+  const val = f.fieldValueString || f.fieldValue || f.value;
   if (Array.isArray(val)) return val[0] || null;
   return val || null;
 }
