@@ -1,10 +1,7 @@
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  const apiKey     = process.env.GHL_API_KEY;
-  const locationId = process.env.GHL_LOCATION_ID;
-  const pipelineId = process.env.GHL_PIPELINE_ID;
-
+  const apiKey = process.env.GHL_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'not_configured' });
 
   const headers = {
@@ -14,21 +11,17 @@ module.exports = async function handler(req, res) {
   };
 
   try {
-    // Find Ben's opportunity directly by contact ID
+    // Fetch Ben Bissett's contact directly
     const r = await fetch(
-      `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&contact_id=9iN90WxhM6BsFhijkGBg&limit=5`,
+      'https://services.leadconnectorhq.com/contacts/9iN90WxhM6BsFhijkGBg',
       { headers }
     );
     const data = await r.json();
-    const opp = (data.opportunities || [])[0];
-
-    if (!opp) return res.status(200).json({ error: 'No opportunity found for this contact', data });
+    const contact = data.contact || data;
 
     return res.status(200).json({
-      name: opp.contact?.name,
-      status: opp.status,
-      pipelineStageId: opp.pipelineStageId,
-      customFields: opp.customFields || []
+      name: contact.firstName + ' ' + contact.lastName,
+      customFields: contact.customFields || []
     });
 
   } catch (err) {
