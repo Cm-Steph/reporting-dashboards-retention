@@ -229,6 +229,7 @@
       <div class="kpi-card blue"><div class="kpi-label">Fee Support %</div><div class="kpi-value" id="kpi-feesupport">—</div><div class="kpi-sub" id="kpi-feesupport-sub">of retained clients</div></div>
       <div class="kpi-card orange"><div class="kpi-label">Undecided</div><div class="kpi-value" id="kpi-review">—</div><div class="kpi-sub">In review stage</div></div>
       <div class="kpi-card orange"><div class="kpi-label">Total Active</div><div class="kpi-value" id="kpi-total">—</div><div class="kpi-sub">In pipeline</div></div>
+      <div class="kpi-card salmon"><div class="kpi-label">Total Exited</div><div class="kpi-value" id="kpi-exited">—</div><div class="kpi-sub" id="kpi-exited-sub">Exited clients</div></div>
     </div>
 
     <div class="section-label">Retention Overview</div>
@@ -431,6 +432,8 @@ function renderWithData(opps) {
   var fscRetained=fsc.filter(isRetained).length;
   setText('kpi-rate', retRate+'%'); setText('kpi-rate-sub', retained.length+' of '+total+' clients saved');
   setText('kpi-mrr', '$'+savedMrr.toLocaleString());
+  setText('kpi-exited', exited.length);
+  setText('kpi-exited-sub', exited.length+' clients exited');
   setText('kpi-lost-mrr', '$'+lostMrr.toLocaleString());
   setText('kpi-saved', '$'+feeTotal.toLocaleString());
   setText('kpi-feesupport', feePct+'%'); setText('kpi-feesupport-sub', fscRetained+' of '+retained.length+' retained clients provided fee support');
