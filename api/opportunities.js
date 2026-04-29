@@ -157,7 +157,7 @@ module.exports = async function handler(req, res) {
 
         status:                o.status || '',
         retention_stage:       stageName,
-        member_value:          parseFloat(field(o, 'member_value') || o.monetaryValue || 0),
+        member_value:          getMemberValue((contactMap[contactId] && contactMap[contactId].program) || field(o, 'program') || ''),
         fee_support_applied:   field(o, 'fee_support_applied') || 'No',
         fee_support_amount:    parseFloat(field(o, 'fee_support_amount') || 0),
         primary_exit_reason:   field(o, 'primary_exit_reason') || null,
@@ -178,6 +178,13 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: err.message });
   }
 };
+
+function getMemberValue(program) {
+  var p = (program || '').toLowerCase();
+  if (p.includes('business academy')) return 2300;
+  if (p.includes('elevate')) return 1200;
+  return 0;
+}
 
 function field(opp, key) {
   const f = (opp.customFields || []).find(f => f.key === key || f.fieldKey === key);
