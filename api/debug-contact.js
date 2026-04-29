@@ -11,7 +11,6 @@ module.exports = async function handler(req, res) {
   };
 
   try {
-    // Fetch Ben Bissett's contact directly
     const r = await fetch(
       'https://services.leadconnectorhq.com/contacts/9iN90WxhM6BsFhijkGBg',
       { headers }
