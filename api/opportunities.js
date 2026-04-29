@@ -5,11 +5,12 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 let cache = null;
 let cacheTime = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_VERSION = '2'; // bump this to invalidate cache on deploy
 
 module.exports = async function handler(req, res) {
   // Return cached data if fresh (unless ?refresh=1 is passed)
   const forceRefresh = req.query && req.query.refresh === '1';
-  if (!forceRefresh && cache && (Date.now() - cacheTime) < CACHE_TTL) {
+  if (!forceRefresh && cache && cache._v === CACHE_VERSION && (Date.now() - cacheTime) < CACHE_TTL) {
     res.setHeader('X-Cache', 'HIT');
     return res.status(200).json(cache);
   }
@@ -170,6 +171,7 @@ module.exports = async function handler(req, res) {
     });
 
     const result = { opportunities: parsed, coachingMap };
+    result._v = CACHE_VERSION;
     cache = result;
     cacheTime = Date.now();
     return res.status(200).json(result);
