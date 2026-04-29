@@ -75,9 +75,25 @@ module.exports = async function handler(req, res) {
     }
 
     // 4. Fetch Coaches & Members pipeline data (if configured)
+    // Pipeline stages are named after the consultant, so stage name = consultant name
     let coachingMap = {};
     if (coachingId) {
       try {
+        // Fetch coaching pipeline stage names
+        let coachStageMap = {};
+        try {
+          const plRes = await fetch(`https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${locationId}`, { headers });
+          if (plRes.ok) {
+            const plData = await plRes.json();
+            const pipelines = plData.pipelines || [];
+            const coachPipeline = pipelines.find(p => p.id === coachingId);
+            if (coachPipeline && coachPipeline.stages) {
+              coachPipeline.stages.forEach(s => { coachStageMap[s.id] = s.name; });
+            }
+          }
+        } catch(e) {}
+
+        // Fetch all coaching opportunities
         let coachOpps = [], cp = 1, cHasMore = true;
         while (cHasMore) {
           const url = `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${coachingId}&page=${cp}&limit=100`;
@@ -90,14 +106,14 @@ module.exports = async function handler(req, res) {
           if (coachOpps.length >= total || opps.length === 0) cHasMore = false;
           else cp++;
         }
-        // Group coaching opps by consultant name
+
+        // Group by stage name (which = consultant name)
         for (const o of coachOpps) {
-          const contactId = o.contact?.id || o.contactId;
-          const consultantName = contactMap[contactId] || o.assignedTo?.name || 'Unassigned';
+          const consultantName = coachStageMap[o.pipelineStageId] || coachStageMap[o.stageId] || 'Unassigned';
           if (!coachingMap[consultantName]) coachingMap[consultantName] = { total: 0, exited: 0 };
           coachingMap[consultantName].total++;
-          const stageName = (o.status || '').toLowerCase();
-          if (stageName.includes('exit') || stageName.includes('cancel') || stageName.includes('lost')) {
+          const stageName = (coachStageMap[o.pipelineStageId] || '').toLowerCase();
+          if (stageName.includes('exit') || stageName.includes('cancel') || stageName.includes('lost') || stageName.includes('churned')) {
             coachingMap[consultantName].exited++;
           }
         }
