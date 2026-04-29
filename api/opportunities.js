@@ -81,9 +81,16 @@ module.exports = async function handler(req, res) {
             const customFields = contact.customFields || contact.customField || [];
             // Consultant/Coach field ID: RPp9VJnvNS0rVABGKkqC
             const consultantField = customFields.find(f => f.id === 'RPp9VJnvNS0rVABGKkqC');
-            contactMap[contactId] = consultantField
-              ? (Array.isArray(consultantField.value) ? consultantField.value[0] : consultantField.value) || null
-              : null;
+            // Program field ID: FtAQKtjJ9IkPUjhz1AyR
+            const programField = customFields.find(f => f.id === 'FtAQKtjJ9IkPUjhz1AyR');
+            contactMap[contactId] = {
+              consultant: consultantField
+                ? (Array.isArray(consultantField.value) ? consultantField.value[0] : consultantField.value) || null
+                : null,
+              program: programField
+                ? (Array.isArray(programField.value) ? programField.value[0] : programField.value) || null
+                : null
+            };
           }
         } catch(e) {}
       }));
@@ -147,7 +154,7 @@ module.exports = async function handler(req, res) {
                         o.status || '';
       return {
         name:                  o.contact?.name || o.name || 'Unknown',
-        program:               field(o, 'program'),
+
         status:                o.status || '',
         retention_stage:       stageName,
         member_value:          parseFloat(field(o, 'member_value') || o.monetaryValue || 0),
@@ -156,7 +163,8 @@ module.exports = async function handler(req, res) {
         primary_exit_reason:   field(o, 'primary_exit_reason') || null,
         exit_date:             field(o, 'exit_date') || null,
         date_confirm_retained: field(o, 'date_confirm_retained') || null,
-        consultant:            contactMap[contactId] || o.assignedTo?.name || 'Unassigned',
+        consultant:            (contactMap[contactId] && contactMap[contactId].consultant) || o.assignedTo?.name || 'Unassigned',
+        program:               (contactMap[contactId] && contactMap[contactId].program) || field(o, 'program') || null,
         createdAt:             o.createdAt || ''
       };
     });
