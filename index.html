@@ -425,7 +425,7 @@ function renderWithData(opps) {
   var total=opps.length, retRate=total>0?((retained.length/total)*100).toFixed(1):'0.0';
   var savedMrr=retained.reduce(function(s,o){return s+(o.member_value||0);},0);
   var lostMrr=exited.reduce(function(s,o){return s+(o.member_value||0);},0);
-  var fsc=opps.filter(function(o){return o.fee_support_applied==='Yes'||o.fee_support_applied==='yes'||o.fee_support_applied===true;});
+  var fsc=opps.filter(function(o){return (o.fee_support_applied==='Yes'||o.fee_support_applied==='yes'||o.fee_support_applied===true)&&(o.fee_support_amount>0);});
   var feeTotal=fsc.reduce(function(s,o){return s+(o.fee_support_amount||0);},0);
   // Fee support % = fee support clients / retained clients
   var feePct=retained.length>0?((fsc.filter(isRetained).length/retained.length)*100).toFixed(1):'0.0';
@@ -634,7 +634,7 @@ function showDemoBanner(){document.getElementById('demoBanner').classList.add('s
 function hideDemoBanner(){document.getElementById('demoBanner').classList.remove('show');}
 function updateSyncLabel(live){var dot=document.getElementById('syncDot'),label=document.getElementById('syncLabel'),now=new Date().toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});if(live){dot.style.background='#22c55e';label.textContent='Live data — Last synced '+now;}else{dot.style.background='var(--orange)';label.textContent='Demo data — '+now;}}
 function outcomeBadge(o){if(isRetained(o))return'<span class="badge badge-retained">Retained</span>';if(isExited(o))return'<span class="badge badge-exited">Exited</span>';if(isReview(o))return'<span class="badge badge-review">Review</span>';return'<span class="badge badge-active">Active</span>';}
-function feeSupportBadge(o){var a=o.fee_support_applied==='Yes'||o.fee_support_applied==='yes'||o.fee_support_applied===true;return a?'<span class="badge badge-yes">Yes — $'+(o.fee_support_amount||0)+'</span>':'<span class="badge badge-no">No</span>';}
+function feeSupportBadge(o){var a=(o.fee_support_applied==='Yes'||o.fee_support_applied==='yes'||o.fee_support_applied===true)&&(o.fee_support_amount>0);return a?'<span class="badge badge-yes">Yes — $'+(o.fee_support_amount||0)+'</span>':'<span class="badge badge-no">No</span>';}
 function formatDate(d){if(!d)return'—';var dt=new Date(d);return isNaN(dt)?d:dt.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'2-digit'});}
 
 document.addEventListener('DOMContentLoaded', function() {
