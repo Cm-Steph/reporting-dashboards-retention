@@ -363,6 +363,18 @@
 
 </div>
 <script>
+// Global auth token helper
+function getToken() {
+  var stored = sessionStorage.getItem('cm_token');
+  if (!stored) return null;
+  try {
+    var data = JSON.parse(stored);
+    if (data.expires > Date.now()) return data.token;
+    sessionStorage.removeItem('cm_token');
+  } catch(e) {}
+  return null;
+}
+
 var allOpportunities = [];
 var filteredClients  = [];
 var currentPage      = 1;
@@ -780,16 +792,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // environment variables — never visible in this code
   // ─────────────────────────────────────────────────────
 
-  function getToken() {
-    var stored = sessionStorage.getItem('cm_token');
-    if (!stored) return null;
-    try {
-      var data = JSON.parse(stored);
-      if (data.expires > Date.now()) return data.token;
-      sessionStorage.removeItem('cm_token');
-    } catch(e) {}
-    return null;
-  }
 
   function checkAccess() {
     var token = getToken();
