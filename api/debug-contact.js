@@ -1,10 +1,7 @@
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  const apiKey     = process.env.GHL_API_KEY;
-  const locationId = process.env.GHL_LOCATION_ID;
-  const pipelineId = process.env.GHL_PIPELINE_ID;
-
+  const apiKey = process.env.GHL_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'not_configured' });
 
   const headers = {
@@ -14,17 +11,16 @@ module.exports = async function handler(req, res) {
   };
 
   try {
-    // Fetch Brandon's opportunity directly by contact ID
+    // Fetch Brandon's opportunity directly by opportunity ID
     const r = await fetch(
-      `https://services.leadconnectorhq.com/opportunities/search?location_id=${locationId}&pipeline_id=${pipelineId}&contact_id=3qeE0Qoyye9JOi5j5ZpR&limit=5`,
+      'https://services.leadconnectorhq.com/opportunities/BeuWkJ1vhPjiml4aeL04',
       { headers }
     );
     const data = await r.json();
-    const opp = (data.opportunities || [])[0];
-    if (!opp) return res.status(200).json({ error: 'No opportunity found', data });
+    const opp = data.opportunity || data;
 
     return res.status(200).json({
-      name: opp.contact?.name,
+      name: opp.contact?.name || opp.name,
       customFields: opp.customFields || []
     });
 
