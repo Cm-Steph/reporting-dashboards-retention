@@ -84,13 +84,34 @@ module.exports = async function handler(req, res) {
             const consultantField = customFields.find(f => f.id === 'RPp9VJnvNS0rVABGKkqC');
             // Program field ID: FtAQKtjJ9IkPUjhz1AyR
             const programField = customFields.find(f => f.id === 'FtAQKtjJ9IkPUjhz1AyR');
+            // Helper to extract value from contact custom field
+            const cfVal = (f) => {
+              if (!f) return null;
+              const v = f.fieldValue || f.value;
+              return Array.isArray(v) ? (v[0] || null) : (v || null);
+            };
+
+            // Find all relevant fields from contact
+            const exitDateCF     = customFields.find(f => f.id === 'gEIzAUmEul1aOS1sTvBf');
+            const exitReasonCF   = customFields.find(f => f.id === '9ZR6rfSnZhPydvQCL00c');
+            const dateRetainedCF = customFields.find(f => f.id === '72LmzM8l0hTIqRRSeXob');
+            const feeAppliedCF   = customFields.find(f => f.id === '8kGSmIraKjNPCLBiliRx');
+
+            // Convert date timestamps from contact fields
+            const getDateVal = (f) => {
+              if (!f) return null;
+              const ts = f.fieldValueDate || f.fieldValue || f.value;
+              if (ts && !isNaN(ts)) return new Date(Number(ts)).toISOString().split('T')[0];
+              return ts || null;
+            };
+
             contactMap[contactId] = {
-              consultant: consultantField
-                ? (Array.isArray(consultantField.value) ? consultantField.value[0] : consultantField.value) || null
-                : null,
-              program: programField
-                ? (Array.isArray(programField.value) ? programField.value[0] : programField.value) || null
-                : null
+              consultant:            cfVal(consultantField),
+              program:               cfVal(programField),
+              exit_date:             getDateVal(exitDateCF),
+              primary_exit_reason:   cfVal(exitReasonCF),
+              date_confirm_retained: getDateVal(dateRetainedCF),
+              fee_support_applied:   cfVal(feeAppliedCF)
             };
           }
         } catch(e) {}
@@ -153,19 +174,27 @@ module.exports = async function handler(req, res) {
                         o.pipelineStage?.name ||
                         field(o, 'retention_stage') ||
                         o.status || '';
+      // Two-stage lookup: opportunity fields first, contact fields as fallback
+      const cm = contactMap[contactId] || {};
+      const program      = field(o, 'program')               || cm.program               || null;
+      const exitDate     = field(o, 'exit_date')             || cm.exit_date             || null;
+      const exitReason   = field(o, 'primary_exit_reason')   || cm.primary_exit_reason   || null;
+      const dateRetained = field(o, 'date_confirm_retained') || cm.date_confirm_retained || null;
+      const feeApplied   = field(o, 'fee_support_applied')   || cm.fee_support_applied   || 'No';
+      const feeAmount    = parseFloat(field(o, 'fee_support_amount') || cm.fee_support_amount || 0);
+
       return {
         name:                  o.contact?.name || o.name || 'Unknown',
-
+        program:               program,
         status:                o.status || '',
         retention_stage:       stageName,
-        member_value:          getMemberValue((contactMap[contactId] && contactMap[contactId].program) || field(o, 'program') || '', field(o, 'member_value'), o.monetaryValue),
-        fee_support_applied:   field(o, 'fee_support_applied') || 'No',
-        fee_support_amount:    parseFloat(field(o, 'fee_support_amount') || 0),
-        primary_exit_reason:   field(o, 'primary_exit_reason') || null,
-        exit_date:             field(o, 'exit_date') || null,
-        date_confirm_retained: field(o, 'date_confirm_retained') || null,
-        consultant:            (contactMap[contactId] && contactMap[contactId].consultant) || o.assignedTo?.name || 'Unassigned',
-        program:               (contactMap[contactId] && contactMap[contactId].program) || field(o, 'program') || null,
+        member_value:          getMemberValue(program || '', field(o, 'member_value') || cm.member_value, o.monetaryValue),
+        fee_support_applied:   feeApplied,
+        fee_support_amount:    feeAmount,
+        primary_exit_reason:   exitReason,
+        exit_date:             exitDate,
+        date_confirm_retained: dateRetained,
+        consultant:            cm.consultant || o.assignedTo?.name || 'Unassigned',
         createdAt:             o.createdAt || ''
       };
     });
@@ -194,10 +223,11 @@ function getMemberValue(program, customFieldValue, monetaryValue) {
 
 // Opportunity custom field IDs (hardcoded from GHL API inspection)
 const OPP_FIELDS = {
-  program:               'CkXgGyUIxQUUKeU1vx6J',
-  primary_exit_reason:   '9ZR6rfSnZhPydvQCL00c',
-  exit_date:             '72LmzM8l0hTIqRRSeXob',
-  date_confirm_retained: 'gEIzAUmEul1aOS1sTvBf'
+  program:               'CkXgGyUIxQUUKeU1vx6J',   // confirmed from Anna Cooper-Hall
+  primary_exit_reason:   'qmfXwZmMNKlmo1fEFVAy',   // confirmed from Brandon Hardwicke
+  exit_date:             'gEIzAUmEul1aOS1sTvBf',   // confirmed from Anna Cooper-Hall (Jun 27 2026)
+  date_confirm_retained: '72LmzM8l0hTIqRRSeXob',   // created/confirmed date
+  retention_stage:       'hCPQHkOAcpTlykOtqAUx',   // confirmed from Brandon Hardwicke
   // fee_support_applied, fee_support_amount, member_value - add IDs when confirmed
 };
 
@@ -216,6 +246,8 @@ function field(opp, key) {
       return new Date(Number(ts)).toISOString().split('T')[0];
     }
   }
+  // Handle array fields (dropdowns)
+  if (f.fieldValueArray && f.fieldValueArray.length > 0) return f.fieldValueArray[0];
   // Handle string fields
   const val = f.fieldValueString || f.fieldValue || f.value;
   if (Array.isArray(val)) return val[0] || null;
