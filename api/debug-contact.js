@@ -11,9 +11,8 @@ module.exports = async function handler(req, res) {
   };
 
   try {
-    // Fetch Brandon's opportunity directly by opportunity ID
     const r = await fetch(
-      'https://services.leadconnectorhq.com/opportunities/BeuWkJ1vhPjiml4aeL04',
+      'https://services.leadconnectorhq.com/opportunities/tuykyKP8RPXBXA2z5P4N',
       { headers }
     );
     const data = await r.json();
