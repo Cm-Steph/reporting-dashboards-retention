@@ -136,7 +136,7 @@
   .page-btn:hover,.page-btn.active { background:var(--eggplant); color:#fff; border-color:var(--eggplant); }
   .page-btn:disabled { opacity:0.3; cursor:not-allowed; }
 
-  .programs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; margin-bottom:20px; }
+  .programs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(380px,1fr)); gap:14px; margin-bottom:20px; }
   .program-card { background:var(--surface); border:1.5px solid var(--border); border-radius:14px; padding:20px; }
   .program-name { font-family:'Lexend',sans-serif; font-size:14px; font-weight:800; margin-bottom:14px; color:var(--eggplant); }
   .program-stat { display:flex; justify-content:space-between; margin-bottom:8px; }
@@ -144,6 +144,24 @@
   .program-stat-value { font-size:12px; color:var(--text); font-weight:600; }
   .program-bar-bg { height:5px; background:var(--border2); border-radius:3px; margin-top:14px; overflow:hidden; }
   .program-bar-fill { height:100%; background:var(--yellow); border-radius:3px; }
+  .program-kpi-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  .program-kpi { background:var(--bg); border-radius:10px; padding:12px 14px; position:relative; overflow:hidden; }
+  .program-kpi::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; border-radius:0 0 10px 10px; }
+  .program-kpi.yellow::after  { background:var(--yellow); }
+  .program-kpi.violet::after  { background:var(--violet); }
+  .program-kpi.orange::after  { background:var(--orange); }
+  .program-kpi.blue::after    { background:var(--blue); }
+  .program-kpi.salmon::after  { background:var(--salmon); }
+  .program-kpi.eggplant::after{ background:var(--eggplant); }
+  .program-kpi.yellow .program-kpi-value   { color:#8a6e00; }
+  .program-kpi.violet .program-kpi-value   { color:var(--violet); }
+  .program-kpi.orange .program-kpi-value   { color:var(--orange); }
+  .program-kpi.blue .program-kpi-value     { color:var(--blue); }
+  .program-kpi.salmon .program-kpi-value   { color:#c0392b; }
+  .program-kpi.eggplant .program-kpi-value { color:var(--eggplant); }
+  .program-kpi-label { font-size:10px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+  .program-kpi-value { font-family:'Lexend',sans-serif; font-size:22px; font-weight:800; line-height:1; letter-spacing:-0.02em; margin-bottom:3px; }
+  .program-kpi-sub { font-size:10px; color:var(--muted2); }
 
   .reasons-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .reason-item { display:flex; justify-content:space-between; align-items:center; padding:11px 14px; background:var(--surface2); border-radius:8px; font-size:13px; border:1px solid var(--border); }
@@ -619,11 +637,93 @@ function renderConsultants(opps) {
 }
 
 function renderPrograms(opps) {
-  var map={};
-  opps.forEach(function(o){var p=o.program||'Unknown';if(!map[p])map[p]={total:0,retained:0,exited:0,mrr:0};map[p].total++;if(isRetained(o)){map[p].retained++;map[p].mrr+=(o.member_value||0);}if(isExited(o))map[p].exited++;});
-  var grid=document.getElementById('programsGrid'), programs=Object.entries(map).sort(function(a,b){return b[1].total-a[1].total;});
-  if(!programs.length){grid.innerHTML='<div class="program-card"><div class="empty-state"><h3>No data</h3></div></div>';return;}
-  grid.innerHTML=programs.map(function(e){var n=e[0],d=e[1],rate=d.total>0?((d.retained/d.total)*100).toFixed(1):'0.0';return '<div class="program-card"><div class="program-name">'+n+'</div><div class="program-stat"><span class="program-stat-label">Total</span><span class="program-stat-value">'+d.total+'</span></div><div class="program-stat"><span class="program-stat-label">Retained</span><span class="program-stat-value" style="color:var(--eggplant)">'+d.retained+'</span></div><div class="program-stat"><span class="program-stat-label">Exited</span><span class="program-stat-value" style="color:var(--salmon)">'+d.exited+'</span></div><div class="program-stat"><span class="program-stat-label">MRR</span><span class="program-stat-value">$'+d.mrr.toLocaleString()+'</span></div><div class="program-stat"><span class="program-stat-label">Retention Rate</span><span class="program-stat-value" style="color:var(--eggplant);font-weight:700">'+rate+'%</span></div><div class="program-bar-bg"><div class="program-bar-fill" style="width:'+rate+'%"></div></div></div>';}).join('');
+  var map = {};
+  opps.forEach(function(o) {
+    var p = o.program || 'Unknown';
+    if (!map[p]) map[p] = { total:0, retained:0, exited:0, review:0, savedMrr:0, lostMrr:0, fsc:0, feeTotal:0 };
+    map[p].total++;
+    if (isRetained(o)) { map[p].retained++; map[p].savedMrr += (o.member_value||0); }
+    if (isExited(o))   { map[p].exited++;   map[p].lostMrr  += (o.member_value||0); }
+    if (isReview(o))     map[p].review++;
+    if ((o.fee_support_applied==='Yes'||o.fee_support_applied==='yes')&&(o.fee_support_amount>0)) {
+      map[p].fsc++;
+      map[p].feeTotal += (o.fee_support_amount||0);
+    }
+  });
+
+  var grid = document.getElementById('programsGrid');
+  var programs = Object.entries(map).sort(function(a,b){ return b[1].total - a[1].total; });
+  if (!programs.length) { grid.innerHTML='<div class="program-card"><div class="empty-state"><h3>No data</h3></div></div>'; return; }
+
+  grid.innerHTML = programs.map(function(e) {
+    var n=e[0], d=e[1];
+    var saveRate  = d.total>0 ? ((d.retained/d.total)*100).toFixed(1) : '0.0';
+    var feePct    = d.retained>0 ? ((d.fsc/d.retained)*100).toFixed(1) : '0.0';
+    var rateColor = parseFloat(saveRate)>=70?'var(--eggplant)':parseFloat(saveRate)>=40?'var(--orange)':'var(--salmon)';
+
+    return '<div class="program-card">'+
+      '<div class="program-name">'+n+'</div>'+
+
+      // Save Rate
+      '<div class="program-kpi-row">'+
+        '<div class="program-kpi yellow">'+
+          '<div class="program-kpi-label">Save Rate</div>'+
+          '<div class="program-kpi-value" style="color:'+rateColor+'">'+saveRate+'%</div>'+
+          '<div class="program-kpi-sub">'+d.retained+' of '+d.total+' saved</div>'+
+        '</div>'+
+        '<div class="program-kpi eggplant">'+
+          '<div class="program-kpi-label">Saved Revenue</div>'+
+          '<div class="program-kpi-value">$'+d.savedMrr.toLocaleString()+'</div>'+
+          '<div class="program-kpi-sub">From retained clients</div>'+
+        '</div>'+
+      '</div>'+
+
+      // Lost Revenue + Exited
+      '<div class="program-kpi-row">'+
+        '<div class="program-kpi salmon">'+
+          '<div class="program-kpi-label">Lost Revenue</div>'+
+          '<div class="program-kpi-value">$'+d.lostMrr.toLocaleString()+'</div>'+
+          '<div class="program-kpi-sub">From exited clients</div>'+
+        '</div>'+
+        '<div class="program-kpi salmon">'+
+          '<div class="program-kpi-label">Total Exited</div>'+
+          '<div class="program-kpi-value">'+d.exited+'</div>'+
+          '<div class="program-kpi-sub">Exited clients</div>'+
+        '</div>'+
+      '</div>'+
+
+      // Fee Support + Undecided
+      '<div class="program-kpi-row">'+
+        '<div class="program-kpi violet">'+
+          '<div class="program-kpi-label">Fee Support %</div>'+
+          '<div class="program-kpi-value">'+feePct+'%</div>'+
+          '<div class="program-kpi-sub">'+d.fsc+' of '+d.retained+' retained</div>'+
+        '</div>'+
+        '<div class="program-kpi orange">'+
+          '<div class="program-kpi-label">Undecided</div>'+
+          '<div class="program-kpi-value">'+d.review+'</div>'+
+          '<div class="program-kpi-sub">In review stage</div>'+
+        '</div>'+
+      '</div>'+
+
+      // Total Active
+      '<div class="program-kpi-row">'+
+        '<div class="program-kpi blue">'+
+          '<div class="program-kpi-label">Total Active</div>'+
+          '<div class="program-kpi-value">'+d.total+'</div>'+
+          '<div class="program-kpi-sub">In pipeline</div>'+
+        '</div>'+
+        '<div class="program-kpi violet">'+
+          '<div class="program-kpi-label">Fee Support Total</div>'+
+          '<div class="program-kpi-value">$'+d.feeTotal.toLocaleString()+'</div>'+
+          '<div class="program-kpi-sub">Total discounts applied</div>'+
+        '</div>'+
+      '</div>'+
+
+      // Save rate bar
+      '<div class="program-bar-bg"><div class="program-bar-fill" style="width:'+saveRate+'%"></div></div>'+
+    '</div>';
+  }).join('');
 }
 
 function switchTab(name){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});var tab=document.querySelector('.tab[data-tab="'+name+'"]');if(tab)tab.classList.add('active');var panel=document.getElementById('tab-'+name);if(panel)panel.classList.add('active');}
