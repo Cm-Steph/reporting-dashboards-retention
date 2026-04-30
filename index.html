@@ -183,11 +183,39 @@
   .exit-pie-legend-count { color:var(--text); font-weight:700; font-family:'Lexend',sans-serif; font-size:13px; }
   .exit-pie-legend-pct { color:var(--muted2); font-size:11px; min-width:36px; text-align:right; }
 
+    /* Passcode screen */
+  .passcode-overlay { position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; align-items:center; justify-content:center; font-family:'Work Sans',sans-serif; }
+  .passcode-box { background:var(--surface); border:1.5px solid var(--border); border-radius:20px; padding:48px 40px; width:100%; max-width:420px; text-align:center; box-shadow:0 8px 40px rgba(46,10,120,0.1); }
+  .passcode-brand { font-family:'Lexend',sans-serif; font-size:11px; font-weight:700; letter-spacing:0.2em; color:var(--violet); text-transform:uppercase; margin-bottom:8px; }
+  .passcode-title { font-family:'Lexend',sans-serif; font-size:28px; font-weight:800; color:var(--eggplant); margin-bottom:8px; }
+  .passcode-subtitle { font-size:14px; color:var(--muted); margin-bottom:32px; }
+  .passcode-input { width:100%; padding:14px 16px; border:1.5px solid var(--border2); border-radius:10px; font-family:'Work Sans',sans-serif; font-size:16px; color:var(--text); background:var(--bg); outline:none; margin-bottom:12px; text-align:center; letter-spacing:0.05em; transition:border-color 0.15s; }
+  .passcode-input:focus { border-color:var(--violet); }
+  .passcode-input.error { border-color:var(--salmon); animation:shake 0.3s; }
+  .passcode-btn { width:100%; padding:14px; background:var(--yellow); color:var(--eggplant); font-family:'Lexend',sans-serif; font-size:15px; font-weight:800; border:none; border-radius:10px; cursor:pointer; transition:background 0.15s; }
+  .passcode-btn:hover { background:#e8c820; }
+  .passcode-error { color:var(--salmon); font-size:13px; margin-top:10px; min-height:20px; }
+  .passcode-footer { font-size:11px; color:var(--muted2); margin-top:24px; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+
     @media (max-width:900px) { .kpi-grid{grid-template-columns:1fr 1fr} .charts-row{grid-template-columns:1fr} }
   @media (max-width:600px) { .kpi-grid{grid-template-columns:1fr} .app{padding:24px 20px} .header{flex-direction:column} }
 </style>
 </head>
 <body>
+<!-- Passcode overlay -->
+<div class="passcode-overlay" id="passcodeOverlay">
+  <div class="passcode-box">
+    <div class="passcode-brand">Clinic Mastery</div>
+    <div class="passcode-title">Retention Dashboard</div>
+    <div class="passcode-subtitle">Enter your passcode to access the dashboard</div>
+    <input class="passcode-input" type="password" id="passcodeInput" placeholder="Enter passcode" autocomplete="off">
+    <button class="passcode-btn" id="passcodeBtn">Access Dashboard</button>
+    <div class="passcode-error" id="passcodeError"></div>
+    <div class="passcode-footer">Access expires after 24 hours</div>
+  </div>
+</div>
+
 <div class="app">
 
   <div class="header">
@@ -373,8 +401,16 @@ async function loadData() {
   btn.textContent = 'Loading...';
   hideError();
   try {
-    var res  = await fetch('/api/opportunities');
+    var token = getToken();
+    var res  = await fetch('/api/opportunities', {
+      headers: { 'Authorization': 'Bearer ' + (token || '') }
+    });
     var data = await res.json();
+    if (res.status === 401) {
+      sessionStorage.removeItem('cm_token');
+      document.getElementById('passcodeOverlay').style.display = 'flex';
+      return;
+    }
     if (data.error === 'not_configured') {
       showDemoBanner(); allOpportunities = DEMO; applyDateFilter(); updateSyncLabel(false); return;
     }
@@ -738,6 +774,76 @@ function feeSupportBadge(o){var a=(o.fee_support_applied==='Yes'||o.fee_support_
 function formatDate(d){if(!d)return'—';var dt=new Date(d);return isNaN(dt)?d:dt.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'2-digit'});}
 
 document.addEventListener('DOMContentLoaded', function() {
+
+  // ── Secure passcode authentication ───────────────────
+  // Passcode is stored as DASHBOARD_PASSCODE in Vercel
+  // environment variables — never visible in this code
+  // ─────────────────────────────────────────────────────
+
+  function getToken() {
+    var stored = sessionStorage.getItem('cm_token');
+    if (!stored) return null;
+    try {
+      var data = JSON.parse(stored);
+      if (data.expires > Date.now()) return data.token;
+      sessionStorage.removeItem('cm_token');
+    } catch(e) {}
+    return null;
+  }
+
+  function checkAccess() {
+    var token = getToken();
+    if (token) {
+      document.getElementById('passcodeOverlay').style.display = 'none';
+      loadData();
+    } else {
+      document.getElementById('passcodeOverlay').style.display = 'flex';
+    }
+  }
+
+  async function submitPasscode() {
+    var input = document.getElementById('passcodeInput').value;
+    var errorEl = document.getElementById('passcodeError');
+    var btn = document.getElementById('passcodeBtn');
+
+    if (!input) return;
+    btn.textContent = 'Verifying...';
+    btn.disabled = true;
+
+    try {
+      var res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode: input })
+      });
+      var data = await res.json();
+
+      if (res.ok && data.token) {
+        sessionStorage.setItem('cm_token', JSON.stringify({ token: data.token, expires: data.expires }));
+        document.getElementById('passcodeOverlay').style.display = 'none';
+        errorEl.textContent = '';
+        loadData();
+      } else {
+        document.getElementById('passcodeInput').classList.add('error');
+        errorEl.textContent = 'Incorrect passcode. Please try again.';
+        setTimeout(function() { document.getElementById('passcodeInput').classList.remove('error'); }, 400);
+        document.getElementById('passcodeInput').value = '';
+      }
+    } catch(e) {
+      errorEl.textContent = 'Connection error. Please try again.';
+    } finally {
+      btn.textContent = 'Access Dashboard';
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('passcodeBtn').addEventListener('click', submitPasscode);
+  document.getElementById('passcodeInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') submitPasscode();
+  });
+
+  checkAccess();
+
   document.getElementById('refreshBtn').addEventListener('click', loadData);
   document.getElementById('dateRangeSelect').addEventListener('change', onDateRangeChange);
   document.getElementById('customDateFrom').addEventListener('change', applyDateFilter);
